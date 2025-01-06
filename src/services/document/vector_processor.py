@@ -1,18 +1,17 @@
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Optional
 import logging
 from chromadb.config import Settings
-import time
 import chromadb
 from langchain_ollama import OllamaEmbeddings
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import os
 import json
-import re
 import multiprocessing
 import hashlib
 from functools import reduce
+from datetime import datetime
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ class VectorProcessor:
             "paraphrase-multilingual",  # Strong at handling variations in expression
             "mxbai-embed-large",  # Effective for technical content
             "nomic-embed-text",  # Good at maintaining semantic relationships
+            "all-minilm",
         ]
 
         # Initialize thread pool with configurable size
@@ -47,17 +47,6 @@ class VectorProcessor:
                 anonymized_telemetry=False, allow_reset=True, is_persistent=True
             ),
         )
-
-        # Initialize content extraction patterns
-        self._initialize_extraction_patterns()
-
-    def _initialize_extraction_patterns(self):
-        """Initialize regex patterns for content extraction and cleaning."""
-        self.patterns = {
-            "whitespace": re.compile(r"\s+"),
-            "special_chars": re.compile(r"[^\w\s\-.,;?!]"),
-            "multiple_dots": re.compile(r"\.{2,}"),
-        }
 
     def _extract_searchable_content(self, text: str) -> str:
         """Extract and clean searchable content from document text.
@@ -79,23 +68,10 @@ class VectorProcessor:
                     for page in content["content"]["pages"]:
                         for page_content in page.values():
                             if "ocr_text" in page_content:
-                                text = page_content["ocr_text"].split()
-                                extracted_text.append(text)
-                            if "first_vision_analysis" in page_content:
-                                text = page_content["first_vision_analysis"].split()
-                                extracted_text.append(text)
-                            if "second_vision_analysis" in page_content:
-                                if isinstance(
-                                    page_content["second_vision_analysis"], list
-                                ):
+                                extracted_text.append(page_content["ocr_text"])
 
-                                    extracted_text.extend(
-                                        page_content["second_vision_analysis"]
-                                    )
-                                else:
-                                    extracted_text.append(
-                                        str(page_content["second_vision_analysis"])
-                                    )
+                            if "visual_analysis" in page_content:
+                                extracted_text.append(page_content["visual_analysis"])
 
             # Join all extracted text into one call
             flattened = reduce(
@@ -174,19 +150,22 @@ class VectorProcessor:
                 self.executor, lambda: emb.embed_documents([text])
             )
 
+            text_hash = hashlib.md5(text.encode()).hexdigest()
+
             collection = self.client.get_or_create_collection(
                 name=model,
                 metadata={
                     "hnsw:space": "cosine",
-                    "time": time.time(),
+                    "timestamp": f"{datetime.now().isoformat(timespec="microseconds")}",
+                    "date": f"{datetime.date}",
                     "model": model,
+                    "id": f"{text_hash}_{random.uniform(0.111111, 99.99999)}",
+                    "hash": text_hash,
                 },
             )
-            # Hash the text content
-            text_hash = hashlib.md5(text.encode()).hexdigest()
 
             # Use this hash in the ID or metadata to ensure content uniqueness
-            unique_id = f"doc_{text_hash}_{file_name}_{model}"
+            unique_id = f"doc_{text_hash}_{file_name}_{model}_{random.uniform(0.111111, 99.99999)}"
 
             collection.add(
                 documents=[text],
@@ -194,12 +173,14 @@ class VectorProcessor:
                 ids=[unique_id],
                 metadatas=[
                     {
-                        "id": unique_id,  # Add the generated ID to the metadata
+                        "id": unique_id,
                         "json_path": file_name,
-                        "timestamp": time.time(),
+                        "timestamp": f"{datetime.now().isoformat(timespec="microseconds")}",
+                        "date": f"{datetime.date}",
                         "model": model,
                         "original_text": text,
                         "processed": True,
+                        "hash": text_hash,
                     }
                 ],
             )

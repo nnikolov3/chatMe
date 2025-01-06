@@ -17,6 +17,7 @@ from ollama import AsyncClient
 import pytesseract
 import easyocr
 import multiprocessing
+from datetime import date
 
 # Initialize logging
 log_dir = "src/log"
@@ -25,9 +26,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(
-            os.path.join(log_dir, f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-        ),
+        logging.FileHandler(os.path.join(log_dir, f"log_{date.today()}.log")),
         logging.StreamHandler(),
     ],
 )
@@ -42,7 +41,6 @@ class VisionPDFProcessor:
         input_dir: str = "src/files_to_process",
         output_dir: str = "src/data/json",
         images_dir: str = "src/data/processed_images",
-        max_workers: int = multiprocessing.cpu_count(),
     ):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
@@ -137,7 +135,10 @@ class VisionPDFProcessor:
 
                 with open(image_path, "rb") as image_file:
                     encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
-                content = """Provide an exhaustive and meticulous transcription of this document, emphasizing accuracy and detail. Capture every detail comprehensively to its extent, ensuring precision in your answer. Highlight graphs, charts, and code blocks, transcribing their content accurately and in full."""
+                content = (
+                    "Describe in detail charts, tables, figures, graphical data or code."
+                    ""
+                )
                 my_message = [
                     {"role": "user", "content": content, "images": [encoded_image]}
                 ]
@@ -145,11 +146,7 @@ class VisionPDFProcessor:
                 response = await AsyncClient().chat(
                     model="minicpm-v", messages=my_message
                 )
-                page_data["first_vision_analysis"] = response["message"]["content"]
-
-                response_2 = reader.readtext(image, detail=0)
-
-                page_data["second_vision_analysis"] = response_2
+                page_data["visual_analysis"] = response["message"]["content"]
 
             return {f"page_{i}": page_data}
 

@@ -103,6 +103,18 @@ class ApplicationManager:
             console.print(f"[red]Error in query interface: {str(e)}[/red]")
             return False
 
+    async def start_chat_interface(self) -> bool:
+        """Start the interactive chat interface with error handling."""
+        console.print("[cyan]Starting chat interface...[/cyan]")
+        try:
+            query_interface = await get_query_interface(str(self.helper.db_path))
+            await query_interface.interactive_query()
+            return True
+        except Exception as e:
+            logger.exception("Error in query interface")
+            console.print(f"[red]Error in query interface: {str(e)}[/red]")
+            return False
+
     async def export_metrics(self) -> bool:
         """Export resource metrics with error handling."""
         console.print("[cyan]Exporting resource metrics...[/cyan]")
@@ -125,6 +137,17 @@ async def main() -> int:
     Returns:
         int: Exit code (0 for success, 1 for error)
     """
+    """
+    TODO: 
+     [] Once pdf processing is done, remove images
+     [] Fix the Ctrl-C and proper mechanism
+     [] Add user interface
+     [] Add logic, if the user has given a path to an image to use the correct model
+     [] Create a unified interface - one function that takes the name of the interface than having multiple functions
+     [] A cleanup functionality, resetting the entire project
+     [x] Add graph, chart recognition
+    
+    """
     # Set up Ollama API base URL
     os.environ["OLLAMA_API_BASE_URL"] = "http://127.0.0.1:11434/api"
 
@@ -134,13 +157,21 @@ async def main() -> int:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "-p", "--process", action="store_true", help="Process PDFs to JSON"
+        "-p", "--process_pdf", action="store_true", help="Start processing PDFs to JSON"
     )
+
     parser.add_argument(
-        "-c", "--chroma", action="store_true", help="Process JSON to ChromaDB"
+        "-d",
+        "--process_db",
+        action="store_true",
+        help="Start procesing JSON to ChromaDB embedings",
     )
     parser.add_argument(
         "-q", "--query", action="store_true", help="Start interactive query interface"
+    )
+
+    parser.add_argument(
+        "-c", "--chat", action="store_true", help="Start interactive chat interface"
     )
     parser.add_argument(
         "--export-metrics", action="store_true", help="Export resource metrics"
@@ -155,15 +186,19 @@ async def main() -> int:
     async with app_manager.managed_helper() as helper:
         try:
             # Process PDFs if requested
-            if args.process and not await app_manager.process_pdfs():
+            if args.process_pdf and not await app_manager.process_pdfs():
                 return 1
 
             # Process vector database if requested
-            if args.chroma and not await app_manager.process_vector_db():
+            if args.process_db and not await app_manager.process_vector_db():
                 return 1
 
             # Start query interface if requested
             if args.query and not await app_manager.start_query_interface():
+                return 1
+
+            # Start chat interface if requested
+            if args.chat and not await app_manager.start_chat_interface():
                 return 1
 
             # Export metrics if requested

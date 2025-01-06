@@ -128,11 +128,7 @@ class ProcessingHelper:
             return {"status": "no_files", "processed": 0}
 
         vector_processor = VectorProcessor(str(self.db_path))
-        texts = [
-            (self.convert_json_to_text(json_path), Path(json_path).stem)
-            for json_path in json_paths
-            if self.convert_json_to_text(json_path)
-        ]
+        texts = self.process_json_paths(json_paths)
 
         if not texts:
             return {"status": "no_valid_content", "processed": 0}
@@ -147,6 +143,15 @@ class ProcessingHelper:
         except Exception as e:
             logger.error(f"Error processing JSON to vector database: {e}")
             return {"status": "error", "error": str(e)}
+
+    def process_json_paths(self, json_paths):
+        vector_processor = VectorProcessor(str(self.db_path))
+        texts = []
+        for json_path in json_paths:
+            text = self.convert_json_to_text(json_path)
+            if text:
+                texts.append((text, Path(json_path).stem))
+        return texts
 
     async def export_resource_metrics(self, filepath: Optional[str] = None) -> bool:
         """Export resource metrics to a file."""

@@ -1,6 +1,6 @@
 from pathlib import Path
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 import chromadb
 from chromadb.config import Settings
@@ -39,8 +39,6 @@ class QueryResult:
             "metadata": self.metadata,
             "timestamp": self.timestamp,
         }
-
-        logger.info(f" Query Result {res}")
         return res
 
 
@@ -75,7 +73,7 @@ class QueryProcessor:
 
         # Cache for embeddings to reduce redundant computation
         self._embedding_cache = {}
-        self._cache_size_limit = 1000  # Adjust based on memory constraints
+        self._cache_size_limit = 25000  # Adjust based on memory constraints
 
     def _validate_db_path(self) -> None:
         """Validate the database path exists and is accessible."""
@@ -157,8 +155,8 @@ class QueryProcessor:
         self,
         query_text: str,
         model: str,
-        n_results: int = 5,
-        min_similarity: float = 0.2,
+        n_results: int = 4,
+        min_similarity: float = 0.39,
     ) -> List[QueryResult]:
         """Query a specific model's collection and return document results.
 
@@ -219,7 +217,7 @@ class QueryProcessor:
             return []
 
     async def parallel_query(
-        self, query_text: str, n_results: int = 5, min_similarity: float = 0.2
+        self, query_text: str, n_results: int = 4, min_similarity: float = 0.39
     ) -> List[QueryResult]:
         """Execute queries across all available models in parallel and combine results.
 
@@ -246,10 +244,10 @@ class QueryProcessor:
             for model in models
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        logger.info(f"Results {results}")
+
         combined_results = []
         for model_results in results:
-            logger.info(f"Model results {model_results}")
+
             if isinstance(model_results, list):  # Check if results are as expected
                 combined_results.extend(model_results)
             else:
@@ -346,7 +344,7 @@ class QueryInterface:
                     TaskProgressColumn(),
                     console=console,
                 ) as progress:
-                    task = progress.add_task("[cyan]Querying all models...", total=1)
+                    task = progress.add_task("[cyan]Querying all models...", total=None)
 
                     results = await self.processor.parallel_query(query)
                     progress.update(task, advance=1)
@@ -360,9 +358,9 @@ class QueryInterface:
                 for i, result in enumerate(results[:10], 1):
                     console.print(
                         f"\n[cyan]{i}. Model: {result.model}[/cyan]"
-                        f"\nSimilarity: {result.similarity:.2%}"
+                        f"\nSimilarity: {result.similarity:.39%}"
                         f"\nDocument: {result.document_id}"
-                        f"\nContent: {result.content[:2048]}..."  # Show more context
+                        f"\nContent: {result.content[:5000]}"
                     )
 
             except asyncio.CancelledError:
