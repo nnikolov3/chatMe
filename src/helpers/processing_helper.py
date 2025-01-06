@@ -26,15 +26,14 @@ class ProcessingHelper:
         self.json_path = self.base_path / "data/json"
         self.resource_manager = ResourceManager()
 
-        # Ensure all required directories exist
         self._setup_directories()
 
-    def _setup_directories(self):
+    def _setup_directories(self) -> None:
         """Ensure all required directories exist."""
         for path in [self.files_path, self.db_path, self.json_path]:
             path.mkdir(parents=True, exist_ok=True)
 
-    async def initialize_resources(self):
+    async def initialize_resources(self) -> None:
         """Initialize and start resource monitoring."""
         try:
             await self.resource_manager.start_monitoring()
@@ -43,7 +42,7 @@ class ProcessingHelper:
             logger.error(f"Failed to initialize resource monitoring: {e}")
             raise
 
-    async def cleanup_resources(self):
+    async def cleanup_resources(self) -> None:
         """Cleanup and stop resource monitoring."""
         try:
             await self.resource_manager.cleanup()
@@ -59,11 +58,10 @@ class ProcessingHelper:
             2: ("skipped", "yellow"),
             3: ("error", "red"),
         }
-
         status_text, color = status_map.get(status_code, ("unknown", "white"))
         console.print(f"[{color}]{file_path}: {status_text}[/{color}]")
 
-    async def process_pdfs_to_json(self) -> Dict:
+    async def process_pdfs_to_json(self) -> Dict[str, Union[str, int]]:
         """Process PDF files to JSON format with progress tracking."""
         pdf_files = list(self.files_path.glob("*.pdf"))
         if not pdf_files:
@@ -89,7 +87,6 @@ class ProcessingHelper:
                     self.print_status(status)
                     results.append(status)
                     progress.advance(pdf_task)
-
             except Exception as e:
                 logger.error(f"Error processing PDFs: {e}")
                 return {"status": "error", "error": str(e)}
@@ -108,55 +105,52 @@ class ProcessingHelper:
 
     def find_json_files(self) -> List[str]:
         """Find all JSON files in the json directory."""
-        pattern = os.path.join(self.json_path, "**", "*.json")
-        return glob.glob(pattern, recursive=True)
+        return glob.glob(str(self.json_path / "**" / "*.json"), recursive=True)
 
     def convert_json_to_text(self, json_path: str) -> str:
         """Convert JSON file content to formatted text."""
+        logger.info(f"Converting to text {json_path}")
         try:
             with open(json_path, "r") as f:
-                data = json.load(f)
-                return json.dumps(data, indent=2)
+                return json.dumps(json.load(f), indent=2)
         except Exception as e:
             logger.error(f"Error converting JSON to text: {e}")
             return ""
 
-    async def process_json_to_vector_db(self) -> Dict:
+    async def process_json_to_vector_db(self) -> Dict[str, Union[str, int]]:
         """Process JSON files to vector database."""
+        logger.info("Vector Process")
+        json_paths = self.find_json_files()
+        logger.info(f"JSON Paths {json_paths}")
+
+        if not json_paths:
+            logger.warning("No JSON files found to process")
+            return {"status": "no_files", "processed": 0}
+
+        vector_processor = VectorProcessor(str(self.db_path))
+        texts = [
+            (self.convert_json_to_text(json_path), Path(json_path).stem)
+            for json_path in json_paths
+            if self.convert_json_to_text(json_path)
+        ]
+
+        if not texts:
+            return {"status": "no_valid_content", "processed": 0}
+
         try:
-            vector_processor = VectorProcessor(str(self.db_path))
-            json_paths = self.find_json_files()
-
-            if not json_paths:
-                logger.warning("No JSON files found to process")
-                return {"status": "no_files", "processed": 0}
-
-            texts = []
-            for json_path in json_paths:
-                text = self.convert_json_to_text(json_path)
-                if text:
-                    file_name = Path(json_path).stem
-                    texts.append((text, file_name))
-
-            if not texts:
-                return {"status": "no_valid_content", "processed": 0}
-
             success = await vector_processor.process_text(texts)
             return {
                 "status": "success" if success else "error",
                 "processed": len(texts) if success else 0,
                 "total_files": len(json_paths),
             }
-
         except Exception as e:
             logger.error(f"Error processing JSON to vector database: {e}")
             return {"status": "error", "error": str(e)}
 
     async def export_resource_metrics(self, filepath: Optional[str] = None) -> bool:
         """Export resource metrics to a file."""
-        if filepath is None:
-            filepath = self.base_path / "data/resource_metrics.json"
-
+        filepath = filepath or (self.base_path / "data/resource_metrics.json")
         try:
             await self.resource_manager.export_metrics(str(filepath))
             return True

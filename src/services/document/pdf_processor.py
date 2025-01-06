@@ -16,6 +16,7 @@ from pdf2image import convert_from_path
 from ollama import AsyncClient
 import pytesseract
 import easyocr
+import multiprocessing
 
 # Initialize logging
 log_dir = "src/log"
@@ -35,17 +36,18 @@ reader = easyocr.Reader(["en"])
 
 
 class VisionPDFProcessor:
+
     def __init__(
         self,
         input_dir: str = "src/files_to_process",
         output_dir: str = "src/data/json",
         images_dir: str = "src/data/processed_images",
-        max_workers: int = None,
+        max_workers: int = multiprocessing.cpu_count(),
     ):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.images_dir = Path(images_dir)
-        self.max_workers = max_workers or os.cpu_count()
+        self.max_workers = multiprocessing.cpu_count()
         self.io_executor = ThreadPoolExecutor(max_workers=self.max_workers)
         self.vision_model = "minicpm-v"
 
@@ -135,7 +137,7 @@ class VisionPDFProcessor:
 
                 with open(image_path, "rb") as image_file:
                     encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
-                content = """Provide an exhaustive and meticulous transcription of this document, emphasizing accuracy and detail. Capture every detail comprehensively, ensuring precision in your transcription. Highlight graphs, charts, and code blocks, transcribing their content accurately and in full."""
+                content = """Provide an exhaustive and meticulous transcription of this document, emphasizing accuracy and detail. Capture every detail comprehensively to its extent, ensuring precision in your answer. Highlight graphs, charts, and code blocks, transcribing their content accurately and in full."""
                 my_message = [
                     {"role": "user", "content": content, "images": [encoded_image]}
                 ]
