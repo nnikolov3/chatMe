@@ -1,0 +1,3409 @@
+Repository Tree:
+===================
+./
+    main.py
+    __init__.py
+    .vscode/
+    src/
+        __init__.py
+        data/
+            chat_history/
+            json/
+            processed_images/
+                071e5e7578d33a7b504fee1e9825f9d6daa5f4c060a09404dc146fd96deb924b/
+            vector_db/
+                0c800f7b-fc6e-45de-a2bb-03b4cbe85146/
+                1c806acb-74e4-482f-9e94-03c7239cec56/
+                6df3e067-41e7-406a-a73f-ca95c862f944/
+                6febd502-3360-41d6-a0b1-40c68a126398/
+                7cec0b8e-d7fa-484e-9068-46c797e275bc/
+        files_to_process/
+        helpers/
+            processing_helper.py
+            __init__.py
+            scripts/
+                black_formatter.py
+                log_cleanup.py
+                repo_parser.py
+                requirements_generator.py
+                sql_lite_check.py
+                upgrade_pip.py
+            __pycache__/
+        log/
+        optimization/
+            resources.py
+            __pycache__/
+        services/
+            chat/
+                chat_processor.py
+            document/
+                pdf_processor.py
+                vector_processor.py
+                __pycache__/
+            query/
+                query_processor.py
+                __init__.py
+                __pycache__/
+        __pycache__/
+
+Detailed File Information:
+===========================
+
+### FILE: main.py ###
+### DIRECTORY: . ###
+### METADATA: Size=8503 bytes, Modified=2025-01-06 09:35:38, Permissions=666 ###
+### LINE COUNTS: Total=226, Blank=32, Comments=11 ###
+----------------------------------------
+import asyncio
+import argparse
+import logging
+from pathlib import Path
+from rich.console import Console
+from rich.logging import RichHandler
+import os
+import signal
+from typing import Optional
+from contextlib import asynccontextmanager
+
+from src.helpers.processing_helper import get_helper
+from src.services.query.query_processor import get_query_interface
+
+# Initialize rich console for better output formatting
+console = Console()
+
+# Configure logging with rich handler for better formatting
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[RichHandler(rich_tracebacks=True)],
+)
+logger = logging.getLogger(__name__)
+
+
+class ApplicationManager:
+    """Manages the lifecycle and state of the application."""
+
+    def __init__(self):
+        self.helper = None
+        self.shutdown_event = asyncio.Event()
+
+    def _setup_signal_handlers(self):
+        """Set up handlers for graceful shutdown."""
+
+        def signal_handler(signum, frame):
+            console.print("\n[yellow]Initiating graceful shutdown...[/yellow]")
+            self.shutdown_event.set()
+
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, signal_handler)
+
+    @asynccontextmanager
+    async def managed_helper(self):
+        """Context manager for handling helper lifecycle."""
+        try:
+            self.helper = await get_helper()
+            yield self.helper
+        finally:
+            if self.helper:
+                await self.helper.cleanup_resources()
+
+    async def process_pdfs(self) -> bool:
+        """Process PDFs to JSON with enhanced error handling."""
+        console.print("[cyan]Processing PDFs to JSON...[/cyan]")
+        try:
+            result = await self.helper.process_pdfs_to_json()
+            if result.get("status") == "completed":
+                console.print(
+                    f"[green]PDF processing completed:\n"
+                    f"- Successful: {result['successful']}/{result['total']}\n"
+                    f"- Skipped: {result['skipped']}\n"
+                    f"- Errors: {result['errors']}[/green]"
+                )
+                return True
+            else:
+                console.print(f"[red]PDF processing failed: {result}[/red]")
+                return False
+        except Exception as e:
+            logger.exception("Error during PDF processing")
+            console.print(f"[red]Error processing PDFs: {str(e)}[/red]")
+            return False
+
+    async def process_vector_db(self) -> bool:
+        """Process JSON to vector database with enhanced error handling."""
+        console.print("[cyan]Processing JSON to vector database...[/cyan]")
+        try:
+            result = await self.helper.process_json_to_vector_db()
+            if result["status"] == "success":
+                console.print(
+                    f"[green]Vector database processing completed:\n"
+                    f"- Processed: {result['processed']}/{result['total_files']} files[/green]"
+                )
+                return True
+            else:
+                console.print(f"[red]Vector database processing failed: {result}[/red]")
+                return False
+        except Exception as e:
+            logger.exception("Error during vector database processing")
+            console.print(f"[red]Error processing vector database: {str(e)}[/red]")
+            return False
+
+    async def start_query_interface(self) -> bool:
+        """Start the interactive query interface with error handling."""
+        console.print("[cyan]Starting query interface...[/cyan]")
+        try:
+            query_interface = await get_query_interface(str(self.helper.db_path))
+            await query_interface.interactive_query()
+            return True
+        except Exception as e:
+            logger.exception("Error in query interface")
+            console.print(f"[red]Error in query interface: {str(e)}[/red]")
+            return False
+
+    async def start_chat_interface(self) -> bool:
+        """Start the interactive chat interface with error handling."""
+        console.print("[cyan]Starting chat interface...[/cyan]")
+        try:
+            query_interface = await get_query_interface(str(self.helper.db_path))
+            await query_interface.interactive_query()
+            return True
+        except Exception as e:
+            logger.exception("Error in query interface")
+            console.print(f"[red]Error in query interface: {str(e)}[/red]")
+            return False
+
+    async def export_metrics(self) -> bool:
+        """Export resource metrics with error handling."""
+        console.print("[cyan]Exporting resource metrics...[/cyan]")
+        try:
+            if await self.helper.export_resource_metrics():
+                console.print("[green]Resource metrics exported successfully[/green]")
+                return True
+            else:
+                console.print("[red]Failed to export resource metrics[/red]")
+                return False
+        except Exception as e:
+            logger.exception("Error exporting metrics")
+            console.print(f"[red]Error exporting metrics: {str(e)}[/red]")
+            return False
+
+
+async def main() -> int:
+    """Main application entry point with comprehensive error handling.
+
+    Returns:
+        int: Exit code (0 for success, 1 for error)
+    """
+    """
+    TODO: 
+     [] Once pdf processing is done, remove images
+     [] Fix the Ctrl-C and proper mechanism
+     [] Add user interface
+     [] Add logic, if the user has given a path to an image to use the correct model
+     [] Create a unified interface - one function that takes the name of the interface than having multiple functions
+     [] A cleanup functionality, resetting the entire project
+     [x] Add graph, chart recognition
+    
+    """
+    # Set up Ollama API base URL
+    os.environ["OLLAMA_API_BASE_URL"] = "http://127.0.0.1:11434/api"
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Document processing and query system",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "-p", "--process_pdf", action="store_true", help="Start processing PDFs to JSON"
+    )
+
+    parser.add_argument(
+        "-d",
+        "--process_db",
+        action="store_true",
+        help="Start procesing JSON to ChromaDB embedings",
+    )
+    parser.add_argument(
+        "-q", "--query", action="store_true", help="Start interactive query interface"
+    )
+
+    parser.add_argument(
+        "-c", "--chat", action="store_true", help="Start interactive chat interface"
+    )
+    parser.add_argument(
+        "--export-metrics", action="store_true", help="Export resource metrics"
+    )
+    args = parser.parse_args()
+
+    # Initialize application manager
+    app_manager = ApplicationManager()
+    app_manager._setup_signal_handlers()
+
+    # Use context manager for helper lifecycle
+    async with app_manager.managed_helper() as helper:
+        try:
+            # Process PDFs if requested
+            if args.process_pdf and not await app_manager.process_pdfs():
+                return 1
+
+            # Process vector database if requested
+            if args.process_db and not await app_manager.process_vector_db():
+                return 1
+
+            # Start query interface if requested
+            if args.query and not await app_manager.start_query_interface():
+                return 1
+
+            # Start chat interface if requested
+            if args.chat and not await app_manager.start_chat_interface():
+                return 1
+
+            # Export metrics if requested
+            if args.export_metrics and not await app_manager.export_metrics():
+                return 1
+
+            return 0
+
+        except Exception as e:
+            logger.exception("Unhandled error in main")
+            console.print(f"[red]Unhandled error: {str(e)}[/red]")
+            return 1
+
+
+if __name__ == "__main__":
+    try:
+        exit_code = asyncio.run(main())
+        exit(exit_code)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Application terminated by user[/yellow]")
+        exit(1)
+    except Exception as e:
+        logger.exception("Critical error")
+        console.print(f"[red]Critical error: {str(e)}[/red]")
+        exit(1)
+
+================================================================================
+
+### FILE: __init__.py ###
+### DIRECTORY: . ###
+### METADATA: Size=0 bytes, Modified=2024-12-29 11:55:35, Permissions=666 ###
+### LINE COUNTS: Total=0, Blank=0, Comments=0 ###
+----------------------------------------
+
+================================================================================
+
+### FILE: __init__.py ###
+### DIRECTORY: .\src ###
+### METADATA: Size=0 bytes, Modified=2024-12-29 11:57:30, Permissions=666 ###
+### LINE COUNTS: Total=0, Blank=0, Comments=0 ###
+----------------------------------------
+
+================================================================================
+
+### FILE: processing_helper.py ###
+### DIRECTORY: .\src\helpers ###
+### METADATA: Size=6669 bytes, Modified=2025-01-06 10:07:15, Permissions=666 ###
+### LINE COUNTS: Total=171, Blank=27, Comments=0 ###
+----------------------------------------
+import asyncio
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Union
+from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
+from rich.console import Console
+import glob
+import json
+import os
+
+from ..services.document.pdf_processor import VisionPDFProcessor
+from ..services.document.vector_processor import VectorProcessor
+from ..optimization.resources import ResourceManager
+
+logger = logging.getLogger(__name__)
+console = Console()
+
+
+class ProcessingHelper:
+    """Helper class to manage document processing operations."""
+
+    def __init__(self, base_path: str = "./src"):
+        self.base_path = Path(base_path)
+        self.files_path = self.base_path / "files_to_process"
+        self.db_path = self.base_path / "data/vector_db"
+        self.json_path = self.base_path / "data/json"
+        self.resource_manager = ResourceManager()
+
+        self._setup_directories()
+
+    def _setup_directories(self) -> None:
+        """Ensure all required directories exist."""
+        for path in [self.files_path, self.db_path, self.json_path]:
+            path.mkdir(parents=True, exist_ok=True)
+
+    async def initialize_resources(self) -> None:
+        """Initialize and start resource monitoring."""
+        try:
+            await self.resource_manager.start_monitoring()
+            logger.info("Resource monitoring started successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize resource monitoring: {e}")
+            raise
+
+    async def cleanup_resources(self) -> None:
+        """Cleanup and stop resource monitoring."""
+        try:
+            await self.resource_manager.cleanup()
+            logger.info("Resource cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during resource cleanup: {e}")
+
+    def print_status(self, status: tuple) -> None:
+        """Print processing status with color coding."""
+        file_path, status_code, _ = status
+        status_map = {
+            1: ("success", "green"),
+            2: ("skipped", "yellow"),
+            3: ("error", "red"),
+        }
+        status_text, color = status_map.get(status_code, ("unknown", "white"))
+        console.print(f"[{color}]{file_path}: {status_text}[/{color}]")
+
+    async def process_pdfs_to_json(self) -> Dict[str, Union[str, int]]:
+        """Process PDF files to JSON format with progress tracking."""
+        pdf_files = list(self.files_path.glob("*.pdf"))
+        if not pdf_files:
+            logger.warning(f"No PDFs found in {self.files_path}")
+            return {"status": "no_files", "processed": 0, "total": 0}
+
+        processor = VisionPDFProcessor()
+        results = []
+
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            pdf_task = progress.add_task(
+                "[cyan]Processing PDFs...", total=len(pdf_files)
+            )
+
+            try:
+                for pdf in pdf_files:
+                    status = await processor.process_single_pdf(pdf)
+                    self.print_status(status)
+                    results.append(status)
+                    progress.advance(pdf_task)
+            except Exception as e:
+                logger.error(f"Error processing PDFs: {e}")
+                return {"status": "error", "error": str(e)}
+
+        successful = sum(1 for status in results if status[1] == 1)
+        skipped = sum(1 for status in results if status[1] == 2)
+        errors = sum(1 for status in results if status[1] == 3)
+
+        return {
+            "status": "completed",
+            "total": len(pdf_files),
+            "successful": successful,
+            "skipped": skipped,
+            "errors": errors,
+        }
+
+    def find_json_files(self) -> List[str]:
+        """Find all JSON files in the json directory."""
+        return glob.glob(str(self.json_path / "**" / "*.json"), recursive=True)
+
+    def convert_json_to_text(self, json_path: str) -> str:
+        """Convert JSON file content to formatted text."""
+        logger.info(f"Converting to text {json_path}")
+        try:
+            with open(json_path, "r") as f:
+                return json.dumps(json.load(f), indent=2)
+        except Exception as e:
+            logger.error(f"Error converting JSON to text: {e}")
+            return ""
+
+    async def process_json_to_vector_db(self) -> Dict[str, Union[str, int]]:
+        """Process JSON files to vector database."""
+        logger.info("Vector Process")
+        json_paths = self.find_json_files()
+        logger.info(f"JSON Paths {json_paths}")
+
+        if not json_paths:
+            logger.warning("No JSON files found to process")
+            return {"status": "no_files", "processed": 0}
+
+        vector_processor = VectorProcessor(str(self.db_path))
+        texts = self.process_json_paths(json_paths)
+
+        if not texts:
+            return {"status": "no_valid_content", "processed": 0}
+
+        try:
+            success = await vector_processor.process_text(texts)
+            return {
+                "status": "success" if success else "error",
+                "processed": len(texts) if success else 0,
+                "total_files": len(json_paths),
+            }
+        except Exception as e:
+            logger.error(f"Error processing JSON to vector database: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def process_json_paths(self, json_paths):
+        vector_processor = VectorProcessor(str(self.db_path))
+        texts = []
+        for json_path in json_paths:
+            text = self.convert_json_to_text(json_path)
+            if text:
+                texts.append((text, Path(json_path).stem))
+        return texts
+
+    async def export_resource_metrics(self, filepath: Optional[str] = None) -> bool:
+        """Export resource metrics to a file."""
+        filepath = filepath or (self.base_path / "data/resource_metrics.json")
+        try:
+            await self.resource_manager.export_metrics(str(filepath))
+            return True
+        except Exception as e:
+            logger.error(f"Failed to export resource metrics: {e}")
+            return False
+
+
+async def get_helper(base_path: str = "./src") -> ProcessingHelper:
+    """Factory function to create and initialize a ProcessingHelper instance."""
+    helper = ProcessingHelper(base_path)
+    await helper.initialize_resources()
+    return helper
+
+================================================================================
+
+### FILE: __init__.py ###
+### DIRECTORY: .\src\helpers ###
+### METADATA: Size=0 bytes, Modified=2025-01-01 15:35:04, Permissions=666 ###
+### LINE COUNTS: Total=0, Blank=0, Comments=0 ###
+----------------------------------------
+
+================================================================================
+
+### FILE: black_formatter.py ###
+### DIRECTORY: .\src\helpers\scripts ###
+### METADATA: Size=1452 bytes, Modified=2024-12-27 16:38:17, Permissions=666 ###
+### LINE COUNTS: Total=41, Blank=6, Comments=2 ###
+----------------------------------------
+import os
+import subprocess
+
+
+def format_with_black(start_dir):
+    """
+    Recursively formats Python files in the specified directory using the Black formatter.
+
+    :param start_dir: The root directory to start the search from.
+    """
+    for root, _, files in os.walk(start_dir):
+        for file in files:
+            if file.endswith(".py"):
+                file_path = os.path.join(root, file)
+                try:
+                    # Run Black with settings optimized for readability
+                    subprocess.run(
+                        [
+                            "black",
+                            "--line-length",
+                            "88",  # Default line length for readability
+                            "--color",
+                            "-W",
+                            "5",
+                            file_path,
+                        ],
+                        check=True,
+                    )
+                    print(f"Formatted: {file_path}")
+                except subprocess.CalledProcessError as e:
+                    print(f"Error formatting {file_path}: {e}")
+
+
+if __name__ == "__main__":
+    # Change this to the directory you want to start from
+    directory = input("Enter the directory to format recursively: ")
+
+    if os.path.isdir(directory):
+        format_with_black(directory)
+    else:
+        print("The specified path is not a directory.")
+
+================================================================================
+
+### FILE: log_cleanup.py ###
+### DIRECTORY: .\src\helpers\scripts ###
+### METADATA: Size=6577 bytes, Modified=2025-01-01 16:22:08, Permissions=666 ###
+### LINE COUNTS: Total=194, Blank=39, Comments=13 ###
+----------------------------------------
+#!/usr/bin/env python
+import os
+import shutil
+import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+import argparse
+import re
+
+# Configure logging for the cleanup script itself
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+class LogCleaner:
+    """A class to manage log file cleanup operations with safety measures."""
+
+    def __init__(self, log_dir: str, archive_dir: str = None):
+        """Initialize the log cleaner with directory paths and default settings.
+
+        Args:
+            log_dir: Directory containing the logs to clean
+            archive_dir: Optional directory for archiving logs before deletion
+        """
+        self.log_dir = Path(log_dir)
+        self.archive_dir = Path(archive_dir) if archive_dir else None
+
+        # Ensure directories exist
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        if self.archive_dir:
+            self.archive_dir.mkdir(parents=True, exist_ok=True)
+
+    def parse_log_date(self, filename: str) -> datetime:
+        """Extract date from log filename using regular expression.
+
+        Args:
+            filename: Name of the log file
+
+        Returns:
+            datetime object representing the log file's date
+        """
+        # Extract date pattern (YYYYMMDD_HHMMSS) from filename
+        match = re.search(r"(\d{8}_\d{6})", filename)
+        if match:
+            date_str = match.group(1)
+            try:
+                return datetime.strptime(date_str, "%Y%m%d_%H%M%S")
+            except ValueError:
+                logger.warning(f"Could not parse date from filename: {filename}")
+        return datetime.fromtimestamp(os.path.getctime(str(self.log_dir / filename)))
+
+    def list_logs(self, days_old: int = None) -> list:
+        """List all log files, optionally filtered by age.
+
+        Args:
+            days_old: Optional number of days to filter logs by age
+
+        Returns:
+            List of log files matching the criteria
+        """
+        log_files = []
+        for file in self.log_dir.glob("*.log"):
+            if days_old is not None:
+                file_date = self.parse_log_date(file.name)
+                if datetime.now() - file_date < timedelta(days=days_old):
+                    continue
+            log_files.append(file)
+        return log_files
+
+    def archive_logs(self, logs_to_archive: list) -> bool:
+        """Archive specified log files before deletion.
+
+        Args:
+            logs_to_archive: List of log files to archive
+
+        Returns:
+            bool: True if archiving was successful
+        """
+        if not self.archive_dir or not logs_to_archive:
+            return False
+
+        try:
+            archive_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            archive_name = f"logs_archive_{archive_date}"
+            archive_path = self.archive_dir / archive_name
+
+            # Create new archive directory
+            archive_path.mkdir(exist_ok=True)
+
+            # Copy logs to archive
+            for log_file in logs_to_archive:
+                shutil.copy2(log_file, archive_path)
+
+            # Create a compressed archive
+            shutil.make_archive(str(archive_path), "zip", str(archive_path))
+
+            # Remove the temporary directory
+            shutil.rmtree(archive_path)
+
+            logger.info(f"Successfully archived logs to {archive_path}.zip")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to archive logs: {e}")
+            return False
+
+    def cleanup_logs(
+        self, days_old: int = 7, keep_last: int = 5, archive: bool = True
+    ) -> tuple:
+        """Clean up old log files with configurable options.
+
+        Args:
+            days_old: Delete logs older than this many days
+            keep_last: Minimum number of most recent logs to keep
+            archive: Whether to archive logs before deletion
+
+        Returns:
+            tuple: (number of deleted files, number of archived files)
+        """
+        # List all log files older than specified days
+        old_logs = self.list_logs(days_old)
+
+        # Sort logs by date, newest first
+        old_logs.sort(key=lambda x: self.parse_log_date(x.name), reverse=True)
+
+        # Keep the specified number of most recent logs
+        logs_to_delete = old_logs[keep_last:]
+
+        if not logs_to_delete:
+            logger.info("No logs to clean up")
+            return 0, 0
+
+        # Archive logs if requested
+        archived_count = 0
+        if archive and self.archive_dir:
+            if self.archive_logs(logs_to_delete):
+                archived_count = len(logs_to_delete)
+
+        # Delete logs
+        deleted_count = 0
+        for log_file in logs_to_delete:
+            try:
+                log_file.unlink()
+                deleted_count += 1
+            except Exception as e:
+                logger.error(f"Failed to delete {log_file}: {e}")
+
+        logger.info(f"Cleaned up {deleted_count} log files")
+        if archived_count:
+            logger.info(f"Archived {archived_count} log files")
+
+        return deleted_count, archived_count
+
+
+def main():
+    """Main function to handle command line arguments and execute cleanup."""
+    parser = argparse.ArgumentParser(description="Clean up old log files")
+    parser.add_argument(
+        "--log-dir", default="./src/log", help="Directory containing log files"
+    )
+    parser.add_argument(
+        "--archive-dir",
+        default="./src/log/archive",
+        help="Directory for archiving logs",
+    )
+    parser.add_argument(
+        "--days", type=int, default=7, help="Delete logs older than this many days"
+    )
+    parser.add_argument(
+        "--keep-last", type=int, default=5, help="Number of recent logs to keep"
+    )
+    parser.add_argument(
+        "--no-archive", action="store_true", help="Skip archiving logs before deletion"
+    )
+
+    args = parser.parse_args()
+
+    cleaner = LogCleaner(args.log_dir, args.archive_dir)
+    deleted, archived = cleaner.cleanup_logs(
+        days_old=args.days, keep_last=args.keep_last, archive=not args.no_archive
+    )
+
+    if deleted == 0:
+        print("No logs were deleted")
+    else:
+        print(f"Cleaned up {deleted} log files")
+        if archived:
+            print(f"Archived {archived} log files")
+
+
+if __name__ == "__main__":
+    main()
+
+================================================================================
+
+### FILE: repo_parser.py ###
+### DIRECTORY: .\src\helpers\scripts ###
+### METADATA: Size=4615 bytes, Modified=2024-12-27 15:53:27, Permissions=666 ###
+### LINE COUNTS: Total=114, Blank=19, Comments=5 ###
+----------------------------------------
+import os
+import argparse
+from datetime import datetime
+
+
+def generate_repo_report(directory, output_file):
+    """
+    Generate a report containing the tree structure and Python file contents of a directory.
+
+    Args:
+        directory (str): The root directory to process.
+        output_file (str): The output text file to save the report.
+    """
+
+    def get_file_metadata(file_path):
+        """Retrieve metadata for a file."""
+        try:
+            stats = os.stat(file_path)
+            size = stats.st_size  # File size in bytes
+            modified_time = datetime.fromtimestamp(stats.st_mtime).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            permissions = oct(stats.st_mode)[-3:]  # Permissions in octal
+            return size, modified_time, permissions
+        except Exception as e:
+            return None, None, f"Error retrieving metadata: {e}"
+
+    def count_lines(file_path):
+        """Count total, blank, and comment lines in a file."""
+        total = blank = comments = 0
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    total += 1
+                    stripped = line.strip()
+                    if not stripped:
+                        blank += 1
+                    elif stripped.startswith("#"):
+                        comments += 1
+        except Exception as e:
+            return total, blank, comments, f"Error counting lines: {e}"
+        return total, blank, comments, None
+
+    with open(output_file, "w", encoding="utf-8") as output:
+        output.write("Repository Tree:\n")
+        output.write("===================\n")
+
+        # Generate the recursive tree structure first
+        for root, dirs, files in os.walk(directory):
+            if ".git" in dirs:
+                dirs.remove(".git")  # Exclude .git directory
+
+            indent_level = root.replace(directory, "").count(os.sep)
+            output.write(f"{'    ' * indent_level}{os.path.basename(root)}/\n")
+
+            for file in files:
+                if file.endswith(".py"):
+                    output.write(f"{'    ' * (indent_level + 1)}{file}\n")
+
+        output.write("\nDetailed File Information:\n")
+        output.write("===========================\n")
+
+        # Traverse the directory again for detailed file information
+        for root, dirs, files in os.walk(directory):
+            if ".git" in dirs:
+                dirs.remove(".git")  # Exclude .git directory
+
+            for file in files:
+                if file.endswith(".py"):
+                    file_path = os.path.join(root, file)
+
+                    # Gather metadata
+                    size, modified_time, permissions = get_file_metadata(file_path)
+                    total, blank, comments, error = count_lines(file_path)
+
+                    # Write detailed file information
+                    output.write(f"\n### FILE: {file} ###\n")
+                    output.write(f"### DIRECTORY: {root} ###\n")
+                    output.write(
+                        f"### METADATA: Size={size} bytes, Modified={modified_time}, Permissions={permissions} ###\n"
+                    )
+                    output.write(
+                        f"### LINE COUNTS: Total={total}, Blank={blank}, Comments={comments} ###\n"
+                    )
+                    output.write(f"{'-' * 40}\n")
+
+                    # Append the content of the file
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as file_content:
+                            output.write(file_content.read())
+                        output.write(f"\n{'=' * 80}\n")
+                    except Exception as e:
+                        output.write(f"### ERROR READING FILE: {e} ###\n")
+                        output.write(f"\n{'=' * 80}\n")
+
+    print(
+        f"Tree structure and Python file contents with metadata saved to {output_file}."
+    )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate a comprehensive repo report with metadata."
+    )
+    parser.add_argument(
+        "-d", "--directory", required=True, help="The root directory to process."
+    )
+    parser.add_argument("-o", "--output", required=True, help="The output text file.")
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.directory):
+        print(f"Error: '{args.directory}' is not a valid directory.")
+    else:
+        generate_repo_report(args.directory, args.output)
+
+================================================================================
+
+### FILE: requirements_generator.py ###
+### DIRECTORY: .\src\helpers\scripts ###
+### METADATA: Size=2807 bytes, Modified=2025-01-01 16:20:20, Permissions=666 ###
+### LINE COUNTS: Total=81, Blank=15, Comments=8 ###
+----------------------------------------
+import pkg_resources
+import pip
+import os
+import sys
+from pathlib import Path
+
+
+def find_project_files(directory: str, extension: str = ".py") -> list:
+    """Find all Python files in the project directory."""
+    python_files = []
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if file.endswith(extension):
+                python_files.append(os.path.join(root, file))
+    return python_files
+
+
+def extract_imports(file_path: str) -> set:
+    """Extract all import statements from a Python file."""
+    imports = set()
+    with open(file_path, "r", encoding="utf-8") as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith("import ") or line.startswith("from "):
+                # Remove comments if any
+                line = line.split("#")[0].strip()
+                # Get the main package name
+                if line.startswith("from "):
+                    package = line.split()[1].split(".")[0]
+                else:
+                    package = line.split()[1].split(".")[0]
+                imports.add(package)
+    return imports
+
+
+def get_package_versions(packages: set) -> dict:
+    """Get installed versions of packages."""
+    versions = {}
+    for package in packages:
+        try:
+            dist = pkg_resources.get_distribution(package)
+            versions[package] = dist.version
+        except pkg_resources.DistributionNotFound:
+            versions[package] = "Not installed"
+    return versions
+
+
+def generate_requirements():
+    """Generate requirements.txt with proper versions."""
+    # Get project root directory
+    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Find all Python files
+    python_files = find_project_files(project_dir)
+
+    # Extract all imports
+    all_imports = set()
+    for file in python_files:
+        file_imports = extract_imports(file)
+        all_imports.update(file_imports)
+
+    # Remove standard library modules
+    stdlib_modules = set(sys.stdlib_modules)
+    third_party_imports = {pkg for pkg in all_imports if pkg not in stdlib_modules}
+
+    # Get versions of installed packages
+    package_versions = get_package_versions(third_party_imports)
+
+    # Write requirements.txt
+    requirements_path = os.path.join(project_dir, "requirements.txt")
+    with open(requirements_path, "w") as f:
+        for package, version in sorted(package_versions.items()):
+            if version != "Not installed":
+                f.write(f"{package}=={version}\n")
+            else:
+                f.write(f"# {package} - version unknown\n")
+
+
+if __name__ == "__main__":
+    generate_requirements()
+    print("Requirements.txt has been generated successfully!")
+
+================================================================================
+
+### FILE: sql_lite_check.py ###
+### DIRECTORY: .\src\helpers\scripts ###
+### METADATA: Size=670 bytes, Modified=2025-01-02 01:10:57, Permissions=666 ###
+### LINE COUNTS: Total=20, Blank=5, Comments=2 ###
+----------------------------------------
+import sqlite3
+
+
+def inspect_chroma_db(db_path: str):
+    """Inspect the contents of the ChromaDB SQLite database."""
+    conn = sqlite3.connect(db_path / "chroma.sqlite3")
+    cursor = conn.cursor()
+
+    # Get document count and content sample
+    cursor.execute("SELECT COUNT(*), embedding_id, document FROM embeddings")
+    result = cursor.fetchone()
+    print(f"Total documents: {result[0]}")
+
+    # Show a sample of the documents
+    cursor.execute("SELECT embedding_id, document FROM embeddings LIMIT 5")
+    for row in cursor.fetchall():
+        print(f"\nDocument ID: {row[0]}")
+        print(f"Content: {row[1][:200]}...")
+
+    conn.close()
+
+================================================================================
+
+### FILE: upgrade_pip.py ###
+### DIRECTORY: .\src\helpers\scripts ###
+### METADATA: Size=429 bytes, Modified=2024-12-27 17:50:08, Permissions=666 ###
+### LINE COUNTS: Total=14, Blank=3, Comments=3 ###
+----------------------------------------
+import pkg_resources
+import subprocess
+
+# Get a list of outdated packages
+outdated_packages = subprocess.run(
+    ["pip", "list", "--outdated", "--format=freeze"], capture_output=True, text=True
+).stdout.splitlines()
+
+# Extract package names
+packages = [line.split("==")[0] for line in outdated_packages]
+
+# Upgrade each package
+for package in packages:
+    subprocess.run(["pip", "install", "--upgrade", package])
+
+================================================================================
+
+### FILE: resources.py ###
+### DIRECTORY: .\src\optimization ###
+### METADATA: Size=18144 bytes, Modified=2025-01-05 17:23:29, Permissions=666 ###
+### LINE COUNTS: Total=446, Blank=68, Comments=14 ###
+----------------------------------------
+import asyncio
+from dataclasses import dataclass
+import logging
+import psutil
+import torch
+import gc
+import pynvml
+from threading import Lock
+from typing import Dict, Optional, List, Union
+from datetime import datetime, timedelta
+import aiofiles
+import json
+import time
+import numpy as np
+from concurrent.futures import ProcessPoolExecutor
+from numba import jit
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ResourceThresholds:
+    """Configurable resource thresholds."""
+
+    cpu_high: float = 0.85  # Warns at 85% CPU usage
+    cpu_critical: float = 0.95  # Critical at 95% CPU usage
+    memory_high: float = 0.80  # Warns at 80% memory usage
+    memory_critical: float = 0.90  # Critical at 90% memory usage
+    gpu_memory_high: float = 0.85  # Warns at 85% GPU memory usage
+    gpu_memory_critical: float = 0.95  # Critical at 95% GPU memory usage
+    gpu_temp_high: float = 80.0  # Warns at 80°C
+    gpu_temp_critical: float = 90.0  # Critical at 90°C
+
+
+@dataclass
+class ResourceMetrics:
+    """Enhanced resource metrics with detailed system information."""
+
+    timestamp: datetime
+    cpu_percent: float
+    memory_percent: float
+    memory_available: float  # in GB
+    memory_total: float  # in GB
+    cpu_count: int
+    cpu_frequency: float  # current CPU frequency
+    disk_usage: float  # disk usage percentage
+    gpu_metrics: Optional[Dict[int, Dict[str, Union[str, float, int]]]] = None
+    io_counters: Optional[Dict[str, int]] = None
+
+    @property
+    def is_cpu_critical(self) -> bool:
+        """Check if CPU usage is at critical level."""
+        return self.cpu_percent > ResourceThresholds.cpu_critical * 100
+
+    @property
+    def is_memory_critical(self) -> bool:
+        """Check if memory usage is at critical level."""
+        return self.memory_percent > ResourceThresholds.memory_critical * 100
+
+
+class ResourceManager:
+    def __init__(
+        self, monitoring_interval: float = 0.5, metrics_history_hours: int = 1
+    ):
+        """Initialize the resource manager with monitoring settings."""
+        self._lock = Lock()
+        self._monitoring = False
+        self._monitor_task: Optional[asyncio.Task] = None
+        self._metrics_history: List[ResourceMetrics] = []
+        self.monitoring_interval = monitoring_interval
+        self._metrics_retention = timedelta(hours=metrics_history_hours)
+        self.thresholds = ResourceThresholds()
+
+        self.cpu_count = psutil.cpu_count(
+            logical=False
+        )  # Use physical cores for more accurate CPU metrics
+        self.total_memory = psutil.virtual_memory().total
+
+        self.gpu_available = torch.cuda.is_available()
+        self.gpu_count = torch.cuda.device_count() if self.gpu_available else 0
+
+        self.nvml_initialized = False
+        if self.gpu_available:
+            try:
+                pynvml.nvmlInit()
+                self.nvml_initialized = True
+                logger.info("NVIDIA Management Library initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize NVIDIA Management Library: {e}")
+
+        logger.info(
+            f"Resource Manager initialized with {self.cpu_count} physical CPUs, {self.total_memory / (1024**3):.1f}GB RAM, {self.gpu_count} GPUs"
+        )
+
+    @jit(nopython=True)
+    def _cpu_intensive_example(self, data):
+        """Example of a CPU-intensive task optimized with Numba."""
+        return np.sum(data)
+
+    async def _collect_gpu_metrics(
+        self,
+    ) -> Optional[Dict[int, Dict[str, Union[str, float, int]]]]:
+        if not self.gpu_available or not self.nvml_initialized:
+            return None
+
+        gpu_metrics = {}
+        for i in range(self.gpu_count):
+            try:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+                metrics = self._get_gpu_metrics(handle)
+                gpu_metrics[i] = metrics
+            except Exception as e:
+                logger.error(f"Error collecting GPU metrics for GPU {i}: {e}")
+        return gpu_metrics if gpu_metrics else None
+
+    def _get_gpu_metrics(self, handle):
+        memory_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+        metrics = {
+            "name": pynvml.nvmlDeviceGetName(
+                handle
+            ),  # Remove .decode("utf-8") if it's already a string
+            "memory_total": memory_info.total / (1024**3),
+            "memory_used": memory_info.used / (1024**3),
+            "memory_free": memory_info.free / (1024**3),
+        }
+
+        for metric_name, func, args in [
+            ("gpu_utilization", pynvml.nvmlDeviceGetUtilizationRates, [handle]),
+            (
+                "temperature",
+                pynvml.nvmlDeviceGetTemperature,
+                [handle, pynvml.NVML_TEMPERATURE_GPU],
+            ),
+            ("power_usage", pynvml.nvmlDeviceGetPowerUsage, [handle]),
+            ("fan_speed", pynvml.nvmlDeviceGetFanSpeed, [handle]),
+            (
+                "graphics_clock",
+                pynvml.nvmlDeviceGetClockInfo,
+                [handle, pynvml.NVML_CLOCK_GRAPHICS],
+            ),
+            (
+                "memory_clock",
+                pynvml.nvmlDeviceGetClockInfo,
+                [handle, pynvml.NVML_CLOCK_MEM],
+            ),
+        ]:
+            try:
+                if metric_name == "power_usage":
+                    metrics[metric_name] = func(*args) / 1000.0  # Convert to Watts
+                elif metric_name == "gpu_utilization":
+                    utilization = func(*args)
+                    metrics[metric_name] = utilization.gpu
+                    metrics["memory_utilization"] = utilization.memory
+                else:
+                    metrics[metric_name] = func(*args)
+            except Exception:
+                logger.debug(f"Could not get {metric_name}")
+
+        return metrics
+
+    async def _collect_metrics(self) -> ResourceMetrics:
+        try:
+            vm = psutil.virtual_memory()
+            cpu_freq = psutil.cpu_freq()
+            disk = psutil.disk_usage("/")
+            io = psutil.disk_io_counters()
+
+            # Correct usage of cpu_percent
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+
+            return ResourceMetrics(
+                timestamp=datetime.now(),
+                cpu_percent=cpu_percent,
+                memory_percent=vm.percent,
+                memory_available=vm.available / (1024**3),
+                memory_total=vm.total / (1024**3),
+                cpu_count=self.cpu_count,
+                cpu_frequency=cpu_freq.current if cpu_freq else 0,
+                disk_usage=disk.percent,
+                io_counters=(
+                    {"read_bytes": io.read_bytes, "write_bytes": io.write_bytes}
+                    if io
+                    else None
+                ),
+                gpu_metrics=await self._collect_gpu_metrics(),
+            )
+        except Exception as e:
+            logger.error(f"Error collecting metrics: {e}")
+            raise
+
+    async def start_monitoring(self):
+        """Start the resource monitoring process."""
+        if self._monitoring:
+            return
+
+        self._monitoring = True
+        self._monitor_task = asyncio.create_task(self._monitor_resources())
+        logger.info("Resource monitoring started")
+
+    async def _monitor_resources(self):
+        while self._monitoring:
+            try:
+                metrics = await self._collect_metrics()
+                self._metrics_history.append(metrics)
+                self._metrics_history = [
+                    m
+                    for m in self._metrics_history
+                    if datetime.now() - m.timestamp < self._metrics_retention
+                ]
+
+                adjusted_interval = self._adjust_monitoring_interval(metrics)
+                self._check_thresholds(metrics)  # Ensure this method call is here
+                await asyncio.sleep(adjusted_interval)
+            except Exception as e:
+                logger.error(f"Error in resource monitoring: {e}")
+                await asyncio.sleep(self.monitoring_interval)
+
+    async def stop_monitoring(self):
+        """Stop the resource monitoring process gracefully."""
+        if not self._monitoring:
+            return
+
+        self._monitoring = False
+        if self._monitor_task:
+            self._monitor_task.cancel()
+            try:
+                await self._monitor_task
+            except asyncio.CancelledError:
+                pass
+        logger.info("Resource monitoring stopped")
+
+    def _check_thresholds(self, metrics: ResourceMetrics):
+        """Check all resource thresholds and log appropriate warnings."""
+        # CPU threshold checks
+        if metrics.cpu_percent > self.thresholds.cpu_critical * 100:
+            logger.warning(f"Critical CPU usage: {metrics.cpu_percent:.1f}%")
+        elif metrics.cpu_percent > self.thresholds.cpu_high * 100:
+            logger.info(f"High CPU usage: {metrics.cpu_percent:.1f}%")
+
+        # Memory threshold checks
+        if metrics.memory_percent > self.thresholds.memory_critical * 100:
+            logger.warning(f"Critical memory usage: {metrics.memory_percent:.1f}%")
+        elif metrics.memory_percent > self.thresholds.memory_high * 100:
+            logger.info(f"High memory usage: {metrics.memory_percent:.1f}%")
+
+        # GPU threshold checks
+        if metrics.gpu_metrics:
+            for gpu_id, gpu_info in metrics.gpu_metrics.items():
+                # Check GPU memory usage
+                if "memory_used" in gpu_info and "memory_total" in gpu_info:
+                    memory_percent = (
+                        gpu_info["memory_used"] / gpu_info["memory_total"]
+                    ) * 100
+                    if memory_percent > self.thresholds.gpu_memory_critical * 100:
+                        logger.warning(
+                            f"Critical GPU {gpu_id} memory usage: {memory_percent:.1f}%"
+                        )
+                    elif memory_percent > self.thresholds.gpu_memory_high * 100:
+                        logger.info(
+                            f"High GPU {gpu_id} memory usage: {memory_percent:.1f}%"
+                        )
+
+                # Check GPU temperature
+                if "temperature" in gpu_info:
+                    temp = gpu_info["temperature"]
+                    if temp > self.thresholds.gpu_temp_critical:
+                        logger.warning(f"Critical GPU {gpu_id} temperature: {temp}°C")
+                    elif temp > self.thresholds.gpu_temp_high:
+                        logger.info(f"High GPU {gpu_id} temperature: {temp}°C")
+
+    async def _monitor_resources(self):
+        """Main monitoring loop that collects and processes metrics periodically."""
+        while self._monitoring:
+            try:
+                # Collect new metrics
+                metrics = await self._collect_metrics()
+                self._metrics_history.append(metrics)
+
+                # Clean up old metrics
+                current_time = datetime.now()
+                self._metrics_history = [
+                    m
+                    for m in self._metrics_history
+                    if current_time - m.timestamp < self._metrics_retention
+                ]
+
+                # Adjust monitoring frequency based on system load
+                adjusted_interval = self._adjust_monitoring_interval(metrics)
+
+                # Check resource thresholds
+                self._check_thresholds(metrics)
+
+                # Use multiprocessing for CPU tasks if needed
+                with ProcessPoolExecutor() as executor:
+                    executor.submit(
+                        self._cpu_intensive_example, np.random.rand(10000000)
+                    )  # Example task
+
+                # Wait for next collection cycle
+                await asyncio.sleep(adjusted_interval)
+
+            except Exception as e:
+                logger.error(f"Error in resource monitoring: {e}")
+                await asyncio.sleep(self.monitoring_interval)
+
+    def _adjust_monitoring_interval(self, metrics: ResourceMetrics) -> float:
+        """Dynamically adjust the monitoring interval based on system load."""
+        base_interval = self.monitoring_interval
+
+        if metrics.is_cpu_critical or metrics.is_memory_critical:
+            return max(0.1, base_interval / 2)  # More frequent checks under high load
+
+        if metrics.gpu_metrics:
+            for gpu_info in metrics.gpu_metrics.values():
+                if gpu_info.get("gpu_utilization", 0) > 90:
+                    return max(0.1, base_interval / 2)
+
+        if (
+            metrics.cpu_percent < 50
+            and metrics.memory_percent < 50
+            and (
+                not metrics.gpu_metrics
+                or all(
+                    info.get("gpu_utilization", 0) < 50
+                    for info in metrics.gpu_metrics.values()
+                )
+            )
+        ):
+            return min(2, base_interval * 1.5)
+
+        return base_interval
+
+    def get_optimal_batch_size(self, sample_size_bytes: int) -> int:
+        """Calculate the optimal batch size based on current resource availability."""
+        try:
+            if not self._metrics_history:
+                return self._calculate_default_batch_size(sample_size_bytes)
+
+            recent_metrics = self._metrics_history[-1]
+
+            memory_factor = 1 - (recent_metrics.memory_percent / 100)
+            cpu_factor = 1 - (recent_metrics.cpu_percent / 100)
+
+            if self.gpu_available and self.nvml_initialized:
+                try:
+                    handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+                    memory_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                    available_memory = memory_info.free
+                    base_batch_size = int((available_memory * 0.7) / sample_size_bytes)
+                except Exception as e:
+                    logger.error(f"Error getting GPU memory info: {e}")
+                    available_memory = recent_metrics.memory_available * (1024**3)
+                    base_batch_size = int((available_memory * 0.7) / sample_size_bytes)
+            else:
+                available_memory = recent_metrics.memory_available * (1024**3)
+                base_batch_size = int((available_memory * 0.7) / sample_size_bytes)
+
+            adjusted_batch_size = int(base_batch_size * min(memory_factor, cpu_factor))
+
+            if recent_metrics.gpu_metrics:
+                gpu_utilization_factor = 1.0
+                for gpu_info in recent_metrics.gpu_metrics.values():
+                    if "gpu_utilization" in gpu_info:
+                        gpu_utilization_factor = min(
+                            gpu_utilization_factor,
+                            1 - (gpu_info["gpu_utilization"] / 100),
+                        )
+                adjusted_batch_size = int(adjusted_batch_size * gpu_utilization_factor)
+
+            return max(1, min(adjusted_batch_size, 1000))
+
+        except Exception as e:
+            logger.error(f"Error calculating batch size: {e}")
+            return self._calculate_default_batch_size(sample_size_bytes)
+
+    def _calculate_default_batch_size(self, sample_size_bytes: int) -> int:
+        """Calculate a conservative default batch size when optimal calculation fails."""
+        total_memory = psutil.virtual_memory().total
+        return max(1, min(32, int((total_memory * 0.1) / sample_size_bytes)))
+
+    async def export_metrics(self, filepath: str):
+        """Export collected metrics history to a JSON file."""
+        try:
+            metrics_data = [
+                {
+                    "timestamp": m.timestamp.isoformat(),
+                    "cpu_percent": m.cpu_percent,
+                    "memory_percent": m.memory_percent,
+                    "memory_available": m.memory_available,
+                    "memory_total": m.memory_total,
+                    "cpu_frequency": m.cpu_frequency,
+                    "disk_usage": m.disk_usage,
+                    "gpu_metrics": m.gpu_metrics,
+                    "io_counters": m.io_counters,
+                }
+                for m in self._metrics_history
+            ]
+
+            async with aiofiles.open(filepath, "w") as f:
+                await f.write(json.dumps(metrics_data, indent=2))
+
+            logger.info(f"Resource metrics exported to {filepath}")
+
+        except Exception as e:
+            logger.error(f"Failed to export metrics: {e}")
+
+    async def cleanup(self):
+        """Perform comprehensive cleanup of all resources."""
+        try:
+            await self.stop_monitoring()
+
+            if self.gpu_available:
+                try:
+                    torch.cuda.empty_cache()
+                    logger.debug("CUDA memory cache cleared")
+                except Exception as e:
+                    logger.error(f"Error clearing CUDA cache: {e}")
+
+                if self.nvml_initialized:
+                    try:
+                        pynvml.nvmlShutdown()
+                        logger.info("NVIDIA Management Library shut down successfully")
+                    except Exception as e:
+                        logger.error(f"Error shutting down NVML: {e}")
+
+            gc.collect()
+            logger.info("Resource manager cleanup completed")
+
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
+
+# Example usage
+if __name__ == "__main__":
+
+    async def main():
+        manager = ResourceManager()
+        await manager.start_monitoring()
+        await asyncio.sleep(10)  # Monitor for 10 seconds
+        await manager.stop_monitoring()
+        await manager.export_metrics("metrics.json")
+        await manager.cleanup()
+
+    asyncio.run(main())
+
+================================================================================
+
+### FILE: chat_processor.py ###
+### DIRECTORY: .\src\services\chat ###
+### METADATA: Size=37076 bytes, Modified=2025-01-06 11:47:12, Permissions=666 ###
+### LINE COUNTS: Total=932, Blank=160, Comments=24 ###
+----------------------------------------
+import hashlib
+from typing import Dict, List, Tuple, Optional
+from pathlib import Path
+import asyncio
+import logging
+import numpy as np
+from datetime import datetime
+from functools import lru_cache
+from langchain_ollama import OllamaLLM, OllamaEmbeddings
+from langchain_core.documents import Document
+from langchain_community.vectorstores import Chroma
+
+
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+
+class ConversationHistory:
+    """Manages conversation history."""
+
+    def __init__(self, max_history: int = 10):
+        self.history: List[Dict] = []
+        self.max_history = max_history
+
+    def add_interaction(self, question: str, response: Dict):
+        """Add an interaction to history."""
+        self.history.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "question": question,
+                "response": response,
+            }
+        )
+        if len(self.history) > self.max_history:
+            self.history.pop(0)
+
+    def get_recent_context(self, n: int = 3) -> str:
+        """Get recent conversation context."""
+        recent = self.history[-n:] if len(self.history) > n else self.history
+        context = []
+        for item in recent:
+            context.append(f"Q: {item['question']}")
+            context.append(f"A: {item['response']['combined_response']}")
+        return "\n".join(context)
+
+    def clear(self):
+        """Clear conversation history."""
+        self.history.clear()
+
+
+class ModelOrchestrator:
+    """Manages multiple LLM models and their interactions."""
+
+    def __init__(self, config_manager: ConfigManager):
+        """Initialize with configuration."""
+        self.config_manager = config_manager
+        self.models = {}
+        self._initialize_models()
+
+    def _initialize_models(self):
+        model_configs = self.config_manager.get_active_models()
+        for model_name, config in model_configs.items():
+            try:
+                self.models[model_name] = OllamaLLM(
+                    model=config.name, timeout=60  # Increased from default
+                )
+                logger.info(f"Successfully initialized model: {model_name}")
+            except Exception as e:
+                logger.error(f"Failed to initialize model {model_name}: {e}")
+
+    async def get_model_response(self, model_name: str, prompt: str) -> str:
+        """Get raw response from a specific model."""
+        if model_name not in self.models:
+            raise ModelNotFoundError(f"Model {model_name} not found")
+        try:
+            return await self.models[model_name].ainvoke(prompt)
+        except asyncio.TimeoutError:
+            raise ModelTimeoutError(f"Request to {model_name} timed out")
+
+    async def check_models_health(self) -> Dict[str, bool]:
+        health_status = {}
+        test_prompt = "This is a health check if we can chat. Please respond with OK is you are ready."
+
+        for model_name in self.models:
+            try:
+                logger.info(f"Testing health for model: {model_name}")
+                response = await self.get_model_response(model_name, test_prompt)
+                # Consider model healthy if it returns any response
+                health_status[model_name] = True
+                logger.info(f"Model {model_name} health check passed")
+            except Exception as e:
+                logger.error(f"Health check failed for {model_name}: {e}")
+                health_status[model_name] = False
+
+        return health_status
+
+
+
+class ResponseGenerator:
+    def __init__(self, config_manager: ConfigManager):
+        self.config_manager = config_manager
+        self.cache = {}
+
+    async def combine_responses(
+        self, responses: Dict[str, str], weights: Dict[str, float]
+    ) -> str:
+        """Combine model responses using weighted approach."""
+        if not responses:
+            return "Unable to generate a response."
+
+        # Process responses
+        all_sentences = self._split_into_sentences(responses)
+        if not all_sentences:
+            return list(responses.values())[0]
+
+        # Calculate similarities and scores
+        scores = self._calculate_sentence_scores(all_sentences, weights)
+
+        # Select and combine best sentences
+        return self._combine_best_sentences(scores)
+
+    def _split_into_sentences(self, responses: Dict[str, str]) -> Dict[str, List[str]]:
+        """Split responses into sentences."""
+        return {
+            model: [s.strip() + "." for s in response.split(".") if len(s.strip()) > 20]
+            for model, response in responses.items()
+            if response
+        }
+
+    def _calculate_sentence_scores(
+        self, sentences: Dict[str, List[str]], weights: Dict[str, float]
+    ) -> Dict[str, float]:
+        """Calculate scores for sentences."""
+        vectorizer = TfidfVectorizer()
+        all_sentences = []
+        sentence_map = {}
+
+        for model, model_sentences in sentences.items():
+            for sentence in model_sentences:
+                if sentence not in sentence_map:
+                    sentence_map[sentence] = []
+                sentence_map[sentence].append((model, len(all_sentences)))
+                all_sentences.append(sentence)
+
+        if not all_sentences:
+            return {}
+
+        vectors = vectorizer.fit_transform(all_sentences)
+        similarity_matrix = cosine_similarity(vectors)
+
+        scores = {}
+        for sentence, occurrences in sentence_map.items():
+            total_score = 0
+            for model, idx in occurrences:
+                consensus_score = np.mean(similarity_matrix[idx])
+                total_score += consensus_score * weights[model]
+            scores[sentence] = total_score / len(occurrences)
+
+        return scores
+
+    def _combine_best_sentences(self, scores: Dict[str, float], limit: int = 10) -> str:
+        """Combine best sentences into coherent response."""
+        best_sentences = sorted(scores.items(), key=lambda x: x[1], reverse=True)[
+            :limit
+        ]
+        return " ".join(sentence for sentence, _ in best_sentences)
+
+
+class MultiModelChat:
+    def __init__(
+        self, resource_manager: ResourceManager, config_manager: ConfigManager
+    ):
+        self.resource_manager = resource_manager
+        self.config_manager = config_manager
+        self.orchestrator = ModelOrchestrator(config_manager)
+        self.document_store = DocumentStore()
+        self.context_store = Chroma(
+            collection_name="chat_context",
+            embedding_function=OllamaEmbeddings(model="nomic-embed-text"),
+            persist_directory="./chroma_db",
+        )
+        self.conversation = ConversationHistory()
+        self.resource_monitor = ResourceMonitor()
+
+    async def initialize(self, documents: List[Document]):
+        try:
+            for doc in documents:
+                doc_id = await self.document_store.insert_document(
+                    filename=doc.metadata.get("source", "unknown"),
+                    file_hash=hashlib.sha256(doc.page_content.encode()).hexdigest(),
+                    metadata=doc.metadata,
+                )
+
+                processor = PDFProcessor()
+                await processor.process_pdf(Path(doc.metadata["source"]))
+
+            await self._check_system_health()
+
+        except Exception as e:
+            logger.error(f"Chat initialization failed: {e}")
+            raise
+
+    async def _check_system_health(self):
+        """Check the health of system components."""
+        try:
+            # Check model health
+            model_health = await self.orchestrator.check_models_health()
+            if not any(model_health.values()):
+                raise RuntimeError("No models are healthy")
+
+            # Check resource availability
+            resource_summary = self.resource_monitor.get_resource_summary()
+            if resource_summary["memory"]["usage_percent"] > 90:
+                raise RuntimeError("System memory usage too high")
+
+            return True
+        except Exception as e:
+            logger.error(f"System health check failed: {e}")
+            raise
+
+    async def _get_context(self, question: str) -> Optional[str]:
+        """Retrieve relevant context from processed documents."""
+        try:
+            # First try to get directly relevant content
+            results = await self.context_store.asimilarity_search_with_relevance_scores(
+                question, k=5  # Increased number of results
+            )
+
+            contexts = []
+            seen_content = set()  # To avoid duplicates
+
+            if results:
+                for doc, score in results:
+                    if score < 0.5:  # Adjusted threshold
+                        continue
+
+                    content = None
+                    if doc.metadata.get("chroma_id"):
+                        chunk = await self.document_store.get_chunk_by_chroma_id(
+                            doc.metadata["chroma_id"]
+                        )
+                        if chunk:
+                            content = chunk["content"]
+                    else:
+                        content = doc.page_content
+
+                    if content and content not in seen_content:
+                        contexts.append(content)
+                        seen_content.add(content)
+
+            # If no good matches found, include some general book information
+            if not contexts:
+                cursor = self.document_store.conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT DISTINCT b.filename, c.content 
+                    FROM books b
+                    JOIN chunks c ON b.id = c.book_id
+                    LIMIT 5
+                """
+                )
+                for row in cursor.fetchall():
+                    if row["content"] and row["content"] not in seen_content:
+                        contexts.append(f"From {row['filename']}:\n{row['content']}")
+                        seen_content.add(row["content"])
+
+            return "\n---\n".join(contexts) if contexts else None
+
+        except Exception as e:
+            logger.error(f"Error retrieving context: {e}")
+            return None
+
+    async def get_response(self, question: str) -> Dict:
+        """Main method to get response for user query."""
+        try:
+            context = await self._get_context(question)
+            async with asyncio.timeout(120):
+                model_responses = await self._get_model_responses(question, context)
+                if not model_responses:
+                    return {"error": "No valid responses generated"}
+                weights = self._calculate_response_weights(model_responses)
+                combined = await self._combine_responses(model_responses, weights)
+                response = {
+                    "combined_response": combined,
+                    "model_responses": model_responses,
+                    "weights": weights,
+                    "context_used": bool(context),
+                }
+                self.conversation.add_interaction(question, response)
+                return response
+        except asyncio.TimeoutError:
+            return {"error": "Request processing took too long"}
+
+    async def _get_model_responses(
+        self, question: str, context: Optional[str]
+    ) -> Dict[str, str]:
+        """Get responses from all active models."""
+        tasks = []
+        for model_name in self.config_manager.get_active_models():
+            prompt = self._create_prompt(model_name, question, context)
+            tasks.append(self.orchestrator.get_model_response(model_name, prompt))
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        return {
+            name: resp
+            for name, resp in zip(self.config_manager.get_active_models(), responses)
+            if not isinstance(resp, Exception)
+        }
+
+    def _calculate_response_weights(
+        self, responses: Dict[str, str]
+    ) -> Dict[str, float]:
+        weights = {}
+        total_length = sum(len(resp) for resp in responses.values())
+
+        for model, response in responses.items():
+            # Base weight on response length and model confidence
+            weight = len(response) / total_length if total_length else 0
+            weights[model] = min(weight * 1.5, 1.0)  # Cap at 1.0
+
+        return weights
+
+    async def _combine_responses(
+        self, responses: Dict[str, str], weights: Dict[str, float]
+    ) -> str:
+        if not responses:
+            return "Unable to generate response"
+
+        vectorizer = TfidfVectorizer()
+        vectors = vectorizer.fit_transform(responses.values())
+        similarity_matrix = cosine_similarity(vectors)
+
+        # Select sentences with highest weighted consensus
+        sentences = []
+        for model, response in responses.items():
+            weight = weights[model]
+            sentences.extend(
+                [
+                    (
+                        sent.strip(),
+                        weight * self._get_sentence_consensus(sent, responses),
+                    )
+                    for sent in response.split(".")
+                    if len(sent.strip()) > 20
+                ]
+            )
+
+        best_sentences = sorted(sentences, key=lambda x: x[1], reverse=True)[:5]
+        return ". ".join(sent for sent, _ in best_sentences) + "."
+
+    def _get_sentence_consensus(
+        self, sentence: str, responses: Dict[str, str]
+    ) -> float:
+        return sum(1 for resp in responses.values() if sentence in resp) / len(
+            responses
+        )
+
+    async def refresh_context(self, documents: List[Document]):
+        await self.initialize(documents)
+
+    def clear_caches(self):
+        self.conversation.clear()
+
+    def _create_prompt(
+        self, model_name: str, question: str, context: Optional[str]
+    ) -> str:
+        base_prompt = f"""Answer based on the provided context.
+        Context: {context}
+        Question: {question}
+        Requirements:
+        - Use all relevant information available.
+        - Be specific and cite relevant parts.
+        - Say "I don't know" if the context lacks necessary information.
+        - You are my expert.
+        - You are always precise and thorough.
+        - You want to educate me and teach me new skills.
+        - You are great at giving analogies.
+        - You don't give false information.
+        - You explnations are clear.
+        - You love helping.
+        - You have my best interest at heart.
+        - You are the best at what you do.
+        - You are an expert computer engineer, electrical engineer, and computer scientist
+        """
+
+        prompts = {
+            "mistral": f"""{base_prompt}
+            You are a precise and thorough assistant. Provide a detailed and accurate response that directly addresses the question. Include specific examples or citations from the context when relevant.""",
+            "llama": f"""{base_prompt}
+            You are an analytical assistant focusing on technical accuracy. Analyze the available information carefully, providing a well-structured response. Make connections between different parts of the context when relevant. Acknowledge limitations if certain aspects are not covered in the context.""",
+            "granite": f"""{base_prompt}
+            You are a practical and precise assistant. Provide a clear, practical response emphasizing accuracy and relevance. Use specific examples from the context to support your points. If the context doesn't fully address the question, be explicit about what information is missing.""",
+        }
+
+        return prompts.get(model_name, base_prompt)
+
+import hashlib
+from typing import Dict, List, Tuple, Optional
+from pathlib import Path
+import asyncio
+import logging
+import json
+import numpy as np
+from datetime import datetime
+from functools import lru_cache
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from langchain_ollama import OllamaLLM, OllamaEmbeddings
+from langchain_core.documents import Document
+from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
+
+from src.models.document_store import DocumentStore
+from src.models.processor import PDFProcessor
+from ..utils.resources import ResourceManager
+from ..utils.config_manager import ConfigManager
+from ..utils.resources import ResourceMonitor
+import re
+
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+
+class ModelError(Exception):
+    """Base exception for model-related errors."""
+
+    pass
+
+
+class ModelNotFoundError(ModelError):
+    """Exception raised when a model is not available."""
+
+    pass
+
+
+class ModelTimeoutError(ModelError):
+    """Exception raised when a model request times out."""
+
+    pass
+
+
+class DocumentProcessingError(Exception):
+    """Exception raised when document processing fails."""
+
+    pass
+
+
+class ConversationHistory:
+    """Manages conversation history."""
+
+    def __init__(self, max_history: int = 10):
+        self.history: List[Dict] = []
+        self.max_history = max_history
+
+    def add_interaction(self, question: str, response: Dict):
+        """Add an interaction to history."""
+        self.history.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "question": question,
+                "response": response,
+            }
+        )
+        if len(self.history) > self.max_history:
+            self.history.pop(0)
+
+    def get_recent_context(self, n: int = 3) -> str:
+        """Get recent conversation context."""
+        recent = self.history[-n:] if len(self.history) > n else self.history
+        context = []
+        for item in recent:
+            context.append(f"Q: {item['question']}")
+            context.append(f"A: {item['response']['combined_response']}")
+        return "\n".join(context)
+
+    def clear(self):
+        """Clear conversation history."""
+        self.history.clear()
+
+
+class ModelOrchestrator:
+    """Manages multiple LLM models and their interactions."""
+
+    def __init__(self, config_manager: ConfigManager):
+        """Initialize with configuration."""
+        self.config_manager = config_manager
+        self.models = {}
+        self._initialize_models()
+
+    def _initialize_models(self):
+        model_configs = self.config_manager.get_active_models()
+        for model_name, config in model_configs.items():
+            try:
+                self.models[model_name] = OllamaLLM(
+                    model=config.name, timeout=60  # Increased from default
+                )
+                logger.info(f"Successfully initialized model: {model_name}")
+            except Exception as e:
+                logger.error(f"Failed to initialize model {model_name}: {e}")
+
+    async def get_model_response(self, model_name: str, prompt: str) -> str:
+        """Get raw response from a specific model."""
+        if model_name not in self.models:
+            raise ModelNotFoundError(f"Model {model_name} not found")
+        try:
+            return await self.models[model_name].ainvoke(prompt)
+        except asyncio.TimeoutError:
+            raise ModelTimeoutError(f"Request to {model_name} timed out")
+
+    async def check_models_health(self) -> Dict[str, bool]:
+        health_status = {}
+        test_prompt = "This is a health check if we can chat. Please respond with OK is you are ready."
+
+        for model_name in self.models:
+            try:
+                logger.info(f"Testing health for model: {model_name}")
+                response = await self.get_model_response(model_name, test_prompt)
+                # Consider model healthy if it returns any response
+                health_status[model_name] = True
+                logger.info(f"Model {model_name} health check passed")
+            except Exception as e:
+                logger.error(f"Health check failed for {model_name}: {e}")
+                health_status[model_name] = False
+
+        return health_status
+
+    async def get_model_response(self, model_name: str, prompt: str) -> str:
+
+        if model_name not in self.models:
+            raise ModelNotFoundError(f"Model {model_name} not found")
+        try:
+            return await self.models[model_name].ainvoke(prompt)
+        except asyncio.TimeoutError:
+            raise ModelTimeoutError(f"Request to {model_name} timed out")
+
+
+class ContextManager:
+    def __init__(self, chunk_size: int = 1024, chunk_overlap: int = 50):
+        """Initialize context manager."""
+        self.vectorstore = None
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self._cache = {}
+
+    async def initialize(self, documents: List[Document]):
+        if not documents:
+            raise ValueError("No documents provided for initialization")
+
+        try:
+            embedding_model = OllamaEmbeddings(model="nomic-embed-text")
+            self.vectorstore = Chroma(
+                collection_name="pdf_content",
+                embedding_function=embedding_model,
+                persist_directory="./chroma_db",  # Add persistence
+            )
+
+            processed_docs = self._process_documents(documents)
+            if not processed_docs:
+                raise DocumentProcessingError(
+                    "Document processing yielded no valid results"
+                )
+
+            await self.vectorstore.aadd_documents(processed_docs)
+            logger.info(
+                f"Successfully processed and added {len(processed_docs)} documents"
+            )
+
+        except Exception as e:
+            logger.error(f"Context manager initialization failed: {str(e)}")
+            self.vectorstore = None  # Reset state on failure
+            raise DocumentProcessingError(f"Failed to initialize context: {str(e)}")
+
+    def _process_documents(self, documents: List[Document]) -> List[Document]:
+        """Process documents for vectorstore."""
+        processed = []
+        for doc in documents:
+            try:
+                # Filter metadata to basic types
+                filtered_metadata = {
+                    k: v
+                    for k, v in doc.metadata.items()
+                    if isinstance(v, (str, int, float, bool))
+                }
+                processed.append(
+                    Document(page_content=doc.page_content, metadata=filtered_metadata)
+                )
+            except Exception as e:
+                logger.error(f"Error processing document: {e}")
+
+        return processed
+
+    async def get_relevant_context(
+        self, question: str, k: int = 10
+    ) -> Tuple[Optional[str], List[Dict]]:
+        if not self.vectorstore:
+            return None, []
+
+        try:
+            retriever = self.vectorstore.as_retriever(search_kwargs={"k": k})
+            # Use ainvoke instead of aget_relevant_documents
+            results = await retriever.ainvoke(question)
+            docs = results["documents"] if isinstance(results, dict) else results
+
+            if not docs:
+                return None, []
+
+            context = "\n".join(doc.page_content for doc in docs)
+            metadata = [doc.metadata for doc in docs]
+
+            return context, metadata
+
+        except Exception as e:
+            logger.error(f"Error retrieving context: {e}")
+            return None, []
+
+    def _process_retrieved_docs(self, docs: List[Document]) -> Tuple[str, List[Dict]]:
+        """Process retrieved documents into context."""
+        try:
+            context_parts = []
+            metadata_list = []
+
+            for doc in docs:
+                if isinstance(doc, Document):
+                    context_parts.append(doc.page_content)
+                    metadata_list.append(doc.metadata)
+
+            return "\n".join(context_parts), metadata_list
+
+        except Exception as e:
+            logger.error(f"Error processing retrieved documents: {e}")
+            return "", []
+
+    def clear_cache(self):
+        """Clear the context cache."""
+        self.get_relevant_context.cache_clear()
+
+
+class ResponseGenerator:
+    def __init__(self, config_manager: ConfigManager):
+        self.config_manager = config_manager
+        self.cache = {}
+
+    async def combine_responses(
+        self, responses: Dict[str, str], weights: Dict[str, float]
+    ) -> str:
+        """Combine model responses using weighted approach."""
+        if not responses:
+            return "Unable to generate a response."
+
+        # Process responses
+        all_sentences = self._split_into_sentences(responses)
+        if not all_sentences:
+            return list(responses.values())[0]
+
+        # Calculate similarities and scores
+        scores = self._calculate_sentence_scores(all_sentences, weights)
+
+        # Select and combine best sentences
+        return self._combine_best_sentences(scores)
+
+    def _split_into_sentences(self, responses: Dict[str, str]) -> Dict[str, List[str]]:
+        """Split responses into sentences."""
+        return {
+            model: [s.strip() + "." for s in response.split(".") if len(s.strip()) > 20]
+            for model, response in responses.items()
+            if response
+        }
+
+    def _calculate_sentence_scores(
+        self, sentences: Dict[str, List[str]], weights: Dict[str, float]
+    ) -> Dict[str, float]:
+        """Calculate scores for sentences."""
+        vectorizer = TfidfVectorizer()
+        all_sentences = []
+        sentence_map = {}
+
+        for model, model_sentences in sentences.items():
+            for sentence in model_sentences:
+                if sentence not in sentence_map:
+                    sentence_map[sentence] = []
+                sentence_map[sentence].append((model, len(all_sentences)))
+                all_sentences.append(sentence)
+
+        if not all_sentences:
+            return {}
+
+        vectors = vectorizer.fit_transform(all_sentences)
+        similarity_matrix = cosine_similarity(vectors)
+
+        scores = {}
+        for sentence, occurrences in sentence_map.items():
+            total_score = 0
+            for model, idx in occurrences:
+                consensus_score = np.mean(similarity_matrix[idx])
+                total_score += consensus_score * weights[model]
+            scores[sentence] = total_score / len(occurrences)
+
+        return scores
+
+    def _combine_best_sentences(self, scores: Dict[str, float], limit: int = 10) -> str:
+        """Combine best sentences into coherent response."""
+        best_sentences = sorted(scores.items(), key=lambda x: x[1], reverse=True)[
+            :limit
+        ]
+        return " ".join(sentence for sentence, _ in best_sentences)
+
+
+class MultiModelChat:
+    def __init__(
+        self, resource_manager: ResourceManager, config_manager: ConfigManager
+    ):
+        self.resource_manager = resource_manager
+        self.config_manager = config_manager
+        self.orchestrator = ModelOrchestrator(config_manager)
+        self.document_store = DocumentStore()
+        self.context_store = Chroma(
+            collection_name="chat_context",
+            embedding_function=OllamaEmbeddings(model="nomic-embed-text"),
+            persist_directory="./chroma_db",
+        )
+        self.conversation = ConversationHistory()
+        self.resource_monitor = ResourceMonitor()
+
+    async def initialize(self, documents: List[Document]):
+        try:
+            for doc in documents:
+                doc_id = await self.document_store.insert_document(
+                    filename=doc.metadata.get("source", "unknown"),
+                    file_hash=hashlib.sha256(doc.page_content.encode()).hexdigest(),
+                    metadata=doc.metadata,
+                )
+
+                processor = PDFProcessor()
+                await processor.process_pdf(Path(doc.metadata["source"]))
+
+            await self._check_system_health()
+
+        except Exception as e:
+            logger.error(f"Chat initialization failed: {e}")
+            raise
+
+    async def _check_system_health(self):
+        """Check the health of system components."""
+        try:
+            # Check model health
+            model_health = await self.orchestrator.check_models_health()
+            if not any(model_health.values()):
+                raise RuntimeError("No models are healthy")
+
+            # Check resource availability
+            resource_summary = self.resource_monitor.get_resource_summary()
+            if resource_summary["memory"]["usage_percent"] > 90:
+                raise RuntimeError("System memory usage too high")
+
+            return True
+        except Exception as e:
+            logger.error(f"System health check failed: {e}")
+            raise
+
+    async def _get_context(self, question: str) -> Optional[str]:
+        """Retrieve relevant context from processed documents."""
+        try:
+            # First try to get directly relevant content
+            results = await self.context_store.asimilarity_search_with_relevance_scores(
+                question, k=5  # Increased number of results
+            )
+
+            contexts = []
+            seen_content = set()  # To avoid duplicates
+
+            if results:
+                for doc, score in results:
+                    if score < 0.5:  # Adjusted threshold
+                        continue
+
+                    content = None
+                    if doc.metadata.get("chroma_id"):
+                        chunk = await self.document_store.get_chunk_by_chroma_id(
+                            doc.metadata["chroma_id"]
+                        )
+                        if chunk:
+                            content = chunk["content"]
+                    else:
+                        content = doc.page_content
+
+                    if content and content not in seen_content:
+                        contexts.append(content)
+                        seen_content.add(content)
+
+            # If no good matches found, include some general book information
+            if not contexts:
+                cursor = self.document_store.conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT DISTINCT b.filename, c.content 
+                    FROM books b
+                    JOIN chunks c ON b.id = c.book_id
+                    LIMIT 5
+                """
+                )
+                for row in cursor.fetchall():
+                    if row["content"] and row["content"] not in seen_content:
+                        contexts.append(f"From {row['filename']}:\n{row['content']}")
+                        seen_content.add(row["content"])
+
+            return "\n---\n".join(contexts) if contexts else None
+
+        except Exception as e:
+            logger.error(f"Error retrieving context: {e}")
+            return None
+
+    async def get_response(self, question: str) -> Dict:
+        """Main method to get response for user query."""
+        try:
+            context = await self._get_context(question)
+            async with asyncio.timeout(120):
+                model_responses = await self._get_model_responses(question, context)
+                if not model_responses:
+                    return {"error": "No valid responses generated"}
+                weights = self._calculate_response_weights(model_responses)
+                combined = await self._combine_responses(model_responses, weights)
+                response = {
+                    "combined_response": combined,
+                    "model_responses": model_responses,
+                    "weights": weights,
+                    "context_used": bool(context),
+                }
+                self.conversation.add_interaction(question, response)
+                return response
+        except asyncio.TimeoutError:
+            return {"error": "Request processing took too long"}
+
+    async def _get_model_responses(
+        self, question: str, context: Optional[str]
+    ) -> Dict[str, str]:
+        """Get responses from all active models."""
+        tasks = []
+        for model_name in self.config_manager.get_active_models():
+            prompt = self._create_prompt(model_name, question, context)
+            tasks.append(self.orchestrator.get_model_response(model_name, prompt))
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        return {
+            name: resp
+            for name, resp in zip(self.config_manager.get_active_models(), responses)
+            if not isinstance(resp, Exception)
+        }
+
+    def _calculate_response_weights(
+        self, responses: Dict[str, str]
+    ) -> Dict[str, float]:
+        weights = {}
+        total_length = sum(len(resp) for resp in responses.values())
+
+        for model, response in responses.items():
+            # Base weight on response length and model confidence
+            weight = len(response) / total_length if total_length else 0
+            weights[model] = min(weight * 1.5, 1.0)  # Cap at 1.0
+
+        return weights
+
+    async def _combine_responses(
+        self, responses: Dict[str, str], weights: Dict[str, float]
+    ) -> str:
+        if not responses:
+            return "Unable to generate response"
+
+        vectorizer = TfidfVectorizer()
+        vectors = vectorizer.fit_transform(responses.values())
+        similarity_matrix = cosine_similarity(vectors)
+
+        # Select sentences with highest weighted consensus
+        sentences = []
+        for model, response in responses.items():
+            weight = weights[model]
+            sentences.extend(
+                [
+                    (
+                        sent.strip(),
+                        weight * self._get_sentence_consensus(sent, responses),
+                    )
+                    for sent in response.split(".")
+                    if len(sent.strip()) > 20
+                ]
+            )
+
+        best_sentences = sorted(sentences, key=lambda x: x[1], reverse=True)[:5]
+        return ". ".join(sent for sent, _ in best_sentences) + "."
+
+    def _get_sentence_consensus(
+        self, sentence: str, responses: Dict[str, str]
+    ) -> float:
+        return sum(1 for resp in responses.values() if sentence in resp) / len(
+            responses
+        )
+
+    async def refresh_context(self, documents: List[Document]):
+        await self.initialize(documents)
+
+    def clear_caches(self):
+        self.conversation.clear()
+
+    def _create_prompt(
+        self, model_name: str, question: str, context: Optional[str]
+    ) -> str:
+        base_prompt = f"""Answer based on the provided context.
+        Context: {context}
+        Question: {question}
+        Requirements:
+        - Use all relevant information available.
+        - Be specific and cite relevant parts.
+        - Say "I don't know" if the context lacks necessary information.
+        - You are my expert.
+        - You are always precise and thorough.
+        - You want to educate me and teach me new skills.
+        - You are great at giving analogies.
+        - You don't give false information.
+        - You explnations are clear.
+        - You love helping.
+        - You have my best interest at heart.
+        - You are the best at what you do.
+        - You are an expert computer engineer, electrical engineer, and computer scientist
+        """
+
+        prompts = {
+            "mistral": f"""{base_prompt}
+            You are a precise and thorough assistant. Provide a detailed and accurate response that directly addresses the question. Include specific examples or citations from the context when relevant.""",
+            "llama": f"""{base_prompt}
+            You are an analytical assistant focusing on technical accuracy. Analyze the available information carefully, providing a well-structured response. Make connections between different parts of the context when relevant. Acknowledge limitations if certain aspects are not covered in the context.""",
+            "granite": f"""{base_prompt}
+            You are a practical and precise assistant. Provide a clear, practical response emphasizing accuracy and relevance. Use specific examples from the context to support your points. If the context doesn't fully address the question, be explicit about what information is missing.""",
+        }
+
+        return prompts.get(model_name, base_prompt)
+
+================================================================================
+
+### FILE: pdf_processor.py ###
+### DIRECTORY: .\src\services\document ###
+### METADATA: Size=6103 bytes, Modified=2025-01-06 10:33:20, Permissions=666 ###
+### LINE COUNTS: Total=176, Blank=28, Comments=3 ###
+----------------------------------------
+#!/usr/bin/env python
+import os
+import base64
+import asyncio
+import logging
+import hashlib
+import json
+from pathlib import Path
+from datetime import datetime
+import re
+from typing import Dict
+from concurrent.futures import ThreadPoolExecutor
+import aiofiles
+from PIL import Image
+from pdf2image import convert_from_path
+from ollama import AsyncClient
+import pytesseract
+import easyocr
+import multiprocessing
+from datetime import date
+
+# Initialize logging
+log_dir = "src/log"
+os.makedirs(log_dir, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(os.path.join(log_dir, f"log_{date.today()}.log")),
+        logging.StreamHandler(),
+    ],
+)
+logger = logging.getLogger(__name__)
+reader = easyocr.Reader(["en"])
+
+
+class VisionPDFProcessor:
+
+    def __init__(
+        self,
+        input_dir: str = "src/files_to_process",
+        output_dir: str = "src/data/json",
+        images_dir: str = "src/data/processed_images",
+    ):
+        self.input_dir = Path(input_dir)
+        self.output_dir = Path(output_dir)
+        self.images_dir = Path(images_dir)
+        self.max_workers = multiprocessing.cpu_count()
+        self.io_executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        self.vision_model = "minicpm-v"
+
+        # Ensure directories exist
+        self._setup_directories()
+
+        logger.info(
+            f"Initialized VisionPDFProcessor with input_dir={self.input_dir}, "
+            f"output_dir={self.output_dir}, max_workers={self.max_workers}"
+        )
+
+    def _setup_directories(self):
+        for dir_path in [self.input_dir, self.output_dir, self.images_dir]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+    def append_to_json_file(self, file_path, file_hash, pdf_path, text, num_pages):
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            data = {
+                "file_path": str(pdf_path),
+                "file_hash": file_hash,
+                "processed_date": datetime.now().isoformat(),
+                "content": {"pages": text, "total_pages": num_pages},
+            }
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=4)
+
+    async def process_single_pdf(self, pdf_path: Path) -> Dict:
+        file_hash = await self._calculate_file_hash(pdf_path)
+        output_path = self.output_dir / f"{pdf_path.stem}_{file_hash[:8]}.json"
+
+        if output_path.exists():
+            with open(output_path, "r") as f:
+                data = json.load(f)
+                if data.get("file_hash") == file_hash:
+                    logger.info(f"Already processed {pdf_path}")
+                    return (pdf_path, True, 2)
+
+        images_path = await self._extract_images(pdf_path, file_hash)
+        if not images_path:
+            logger.error("No images path")
+            return (pdf_path, False, 3)
+
+        num_images = len(list(images_path.glob("*.*")))
+        text = await self._vision_process_page(images_path, num_images)
+
+        self.append_to_json_file(output_path, file_hash, pdf_path, text, num_images)
+        return (pdf_path, True, 1)
+
+    async def _extract_images(self, pdf_path: Path, pdf_hash: str):
+        image_dir = self.images_dir / pdf_hash
+        if image_dir.exists():
+            logger.info(f"Images already processed: {image_dir}")
+            return image_dir
+
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        images = await asyncio.to_thread(
+            convert_from_path,
+            pdf_path,
+            dpi=300,
+            fmt="jpeg",
+            thread_count=self.max_workers,
+            transparent=True,
+            use_pdftocairo=True,
+        )
+
+        async def save_image(image, index):
+            image_path = image_dir / f"{pdf_path.stem}_{index:03d}.jpg"
+            image.save(image_path, "jpeg")
+
+        await asyncio.gather(
+            *[save_image(img, idx + 1) for idx, img in enumerate(images)]
+        )
+
+        return image_dir
+
+    async def _vision_process_page(self, images_path, num_images):
+        async def process_image(image_path, i):
+            with Image.open(image_path) as image:
+                text = pytesseract.image_to_string(image)
+                page_data = {"ocr_text": text}
+
+                with open(image_path, "rb") as image_file:
+                    encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
+                content = (
+                    "Describe in detail charts, tables, figures, graphical data or code."
+                    ""
+                )
+                my_message = [
+                    {"role": "user", "content": content, "images": [encoded_image]}
+                ]
+
+                response = await AsyncClient().chat(
+                    model="minicpm-v", messages=my_message
+                )
+                page_data["visual_analysis"] = response["message"]["content"]
+
+            return {f"page_{i}": page_data}
+
+        tasks = [
+            process_image(img_path, i)
+            for i, img_path in enumerate(
+                sorted(
+                    images_path.glob("*"),
+                    key=lambda x: int(re.findall(r"\d+", x.stem)[0]),
+                )
+            )
+            if img_path.suffix.lower() in [".png", ".jpg", ".jpeg", ".gif", ".bmp"]
+        ]
+        return await asyncio.gather(*tasks)
+
+    @staticmethod
+    async def _calculate_file_hash(filepath: Path) -> str:
+        sha256_hash = hashlib.sha256()
+        async with aiofiles.open(filepath, "rb") as f:
+            while chunk := await f.read(8192):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+
+
+if __name__ == "__main__":
+    processor = VisionPDFProcessor()
+    asyncio.run(processor.process_pdfs())
+
+================================================================================
+
+### FILE: vector_processor.py ###
+### DIRECTORY: .\src\services\document ###
+### METADATA: Size=7224 bytes, Modified=2025-01-06 11:41:08, Permissions=666 ###
+### LINE COUNTS: Total=193, Blank=31, Comments=11 ###
+----------------------------------------
+from pathlib import Path
+from typing import Dict, List, Optional
+import logging
+from chromadb.config import Settings
+import chromadb
+from langchain_ollama import OllamaEmbeddings
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import json
+import multiprocessing
+import hashlib
+from functools import reduce
+from datetime import datetime
+import random
+
+logger = logging.getLogger(__name__)
+
+
+class VectorProcessor:
+    """Enhanced vector database operations handler with improved document processing."""
+
+    def __init__(self, persist_dir: str):
+        """Initialize the vector processor with advanced configuration.
+
+        Args:
+            persist_dir: Directory path for ChromaDB persistence
+        """
+        self.persist_dir = Path(persist_dir)
+        self.persist_dir.mkdir(parents=True, exist_ok=True)
+
+        # Curated list of models optimized for different aspects of text understanding
+        self.models = [
+            "bge-m3",  # Good for general text understanding
+            "paraphrase-multilingual",  # Strong at handling variations in expression
+            "mxbai-embed-large",  # Effective for technical content
+            "nomic-embed-text",  # Good at maintaining semantic relationships
+            "all-minilm",
+        ]
+
+        # Initialize thread pool with configurable size
+        self.executor = ThreadPoolExecutor(max_workers=multiprocessing.cpu_count())
+
+        # Initialize ChromaDB with optimized settings
+        self.client = chromadb.PersistentClient(
+            path=str(persist_dir),
+            settings=Settings(
+                anonymized_telemetry=False, allow_reset=True, is_persistent=True
+            ),
+        )
+
+    def _extract_searchable_content(self, text: str) -> str:
+        """Extract and clean searchable content from document text.
+
+        Args:
+            text: Raw document text that might be JSON or plain text
+
+        Returns:
+            Processed and cleaned text ready for embedding
+        """
+        try:
+            # Try to parse as JSON first
+            content = json.loads(text)
+            extracted_text = []
+
+            # Handle nested JSON structure
+            if isinstance(content, dict):
+                if "content" in content and "pages" in content["content"]:
+                    for page in content["content"]["pages"]:
+                        for page_content in page.values():
+                            if "ocr_text" in page_content:
+                                extracted_text.append(page_content["ocr_text"])
+
+                            if "visual_analysis" in page_content:
+                                extracted_text.append(page_content["visual_analysis"])
+
+            # Join all extracted text into one call
+            flattened = reduce(
+                lambda x, y: reduce(
+                    lambda a, b: a + b if isinstance(b, list) else a + [b],
+                    y if isinstance(y, list) else [y],
+                    x,
+                ),
+                extracted_text,
+                [],
+            )
+            processed_text = " ".join(flattened)
+
+        except json.JSONDecodeError:
+            # Handle as plain text if not JSON
+            processed_text = text
+
+        return processed_text
+
+    async def process_text(self, texts: List[tuple]) -> bool:
+        """Process text into vector embeddings with enhanced content handling.
+
+        Args:
+            texts: List of (text, file_name) tuples to process
+
+        Returns:
+            bool indicating if at least one embedding was successful
+        """
+        if not texts:
+            logger.error("Empty list provided for text processing")
+            return False
+
+        all_embeddings = []
+        for text, file_name in texts:
+            processed_text = self._extract_searchable_content(text)
+            tasks = [
+                self._embed_text(processed_text, model, file_name)
+                for model in self.models
+            ]
+
+            # Use asyncio.gather with return_exceptions=True to handle potential failures gracefully
+            embeddings = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for result in embeddings:
+                if isinstance(
+                    result, dict
+                ):  # Check if result is a successful embedding
+                    all_embeddings.append(result)
+                else:
+                    # Log errors from failed embeddings
+                    logger.error(
+                        f"Embedding failed: {result}"
+                        if result
+                        else "Embedding returned None"
+                    )
+
+        # Combine all embeddings into one coherent text
+        combined_text = " ".join(
+            [emb.get("document", "") for emb in all_embeddings if emb]
+        )
+
+        return bool(all_embeddings)
+
+    async def _embed_text(
+        self, text: str, model: str, file_name: str
+    ) -> Optional[Dict]:
+        """Helper method to embed text for a specific model."""
+        try:
+            emb = OllamaEmbeddings(model=model)
+            embedding = await asyncio.get_event_loop().run_in_executor(
+                self.executor, lambda: emb.embed_documents([text])
+            )
+
+            text_hash = hashlib.md5(text.encode()).hexdigest()
+
+            collection = self.client.get_or_create_collection(
+                name=model,
+                metadata={
+                    "hnsw:space": "cosine",
+                    "timestamp": f"{datetime.now().isoformat(timespec="microseconds")}",
+                    "date": f"{datetime.date}",
+                    "model": model,
+                    "id": f"{text_hash}_{random.uniform(0.111111, 99.99999)}",
+                    "hash": text_hash,
+                },
+            )
+
+            # Use this hash in the ID or metadata to ensure content uniqueness
+            unique_id = f"doc_{text_hash}_{file_name}_{model}_{random.uniform(0.111111, 99.99999)}"
+
+            collection.add(
+                documents=[text],
+                embeddings=embedding,
+                ids=[unique_id],
+                metadatas=[
+                    {
+                        "id": unique_id,
+                        "json_path": file_name,
+                        "timestamp": f"{datetime.now().isoformat(timespec="microseconds")}",
+                        "date": f"{datetime.date}",
+                        "model": model,
+                        "original_text": text,
+                        "processed": True,
+                        "hash": text_hash,
+                    }
+                ],
+            )
+            return {"document": text, "model": model}
+
+        except Exception as e:
+            logger.error(f"Error processing embedding for model {model}: {str(e)}")
+            return None
+
+    async def cleanup(self):
+        """Cleanup resources and shutdown properly."""
+        try:
+            self.executor.shutdown(wait=True)
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
+================================================================================
+
+### FILE: query_processor.py ###
+### DIRECTORY: .\src\services\query ###
+### METADATA: Size=13393 bytes, Modified=2025-01-06 11:40:13, Permissions=666 ###
+### LINE COUNTS: Total=380, Blank=76, Comments=13 ###
+----------------------------------------
+from pathlib import Path
+import logging
+from typing import Dict, List, Optional
+from dataclasses import dataclass, field
+import chromadb
+from chromadb.config import Settings
+from chromadb.api.models.Collection import Collection
+from langchain_ollama import OllamaEmbeddings
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import time
+import signal
+from rich.console import Console
+from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
+import multiprocessing
+
+logger = logging.getLogger(__name__)
+console = Console()
+
+
+@dataclass
+class QueryResult:
+    """Data class to store query results with enhanced metadata."""
+
+    model: str
+    document_id: str
+    content: str
+    similarity: float
+    metadata: Dict
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> Dict:
+        """Convert the query result to a dictionary format."""
+        res = {
+            "model": self.model,
+            "document_id": self.document_id,
+            "content": self.content,
+            "similarity": self.similarity,
+            "metadata": self.metadata,
+            "timestamp": self.timestamp,
+        }
+        return res
+
+
+class QueryProcessor:
+    """Enhanced query processor with improved error handling and caching."""
+
+    def __init__(self, db_path: str, max_workers: int = multiprocessing.cpu_count()):
+        """Initialize the query processor with configurable worker pool.
+
+        Args:
+            db_path: Path to the ChromaDB database
+            max_workers: Maximum number of worker threads for async operations
+        """
+        self.db_path = Path(db_path)
+        self._validate_db_path()
+
+        # Initialize thread pool with configurable size
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+
+        # Initialize ChromaDB client with better error handling
+        try:
+            self.client = chromadb.PersistentClient(
+                path=str(db_path),
+                settings=Settings(
+                    anonymized_telemetry=False, allow_reset=True, is_persistent=True
+                ),
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize ChromaDB client: {e}")
+            raise
+
+        # Cache for embeddings to reduce redundant computation
+        self._embedding_cache = {}
+        self._cache_size_limit = 25000  # Adjust based on memory constraints
+
+    def _validate_db_path(self) -> None:
+        """Validate the database path exists and is accessible."""
+        if not self.db_path.exists():
+            self.db_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Created database directory at {self.db_path}")
+        elif not self.db_path.is_dir():
+            raise ValueError(
+                f"Database path {self.db_path} exists but is not a directory"
+            )
+
+    async def _get_collection(self, model: str) -> Optional[Collection]:
+        """Safely get a collection for the specified model.
+
+        Args:
+            model: Name of the model/collection to retrieve
+
+        Returns:
+            Collection object if found and not empty, None if collection not found or is empty.
+
+        Note:
+            Logs warnings for collections not found or empty, and errors for any exceptions encountered.
+        """
+        try:
+            collection_names = self.client.list_collections()
+            if model not in collection_names:
+                logger.warning(f"Collection for model '{model}' not found")
+                return None
+
+            collection = self.client.get_collection(name=model)
+            if collection.count() == 0:
+                logger.warning(f"Collection '{model}' is empty")
+                return None
+
+            return collection
+
+        except Exception as e:
+            logger.error(f"Error accessing collection '{model}': {e}")
+            return None
+
+    async def _get_embedding(self, text: str, model: str) -> List[float]:
+        """Get embedding for text with caching.
+
+        Args:
+            text: Text to embed
+            model: Model to use for embedding
+
+        Returns:
+            List of embedding values
+        """
+        cache_key = f"{model}:{hash(text)}"
+        if cache_key in self._embedding_cache:
+            return self._embedding_cache[cache_key]
+
+        try:
+            emb = OllamaEmbeddings(model=model)
+            embedding = await asyncio.get_event_loop().run_in_executor(
+                self.executor, lambda: emb.embed_documents([text])
+            )
+
+            # Cache the result if cache isn't full
+            if len(self._embedding_cache) < self._cache_size_limit:
+                self._embedding_cache[cache_key] = embedding[0]
+
+            return embedding[0]
+
+        except Exception as e:
+            logger.error(
+                f"Error generating embedding for text '{text[:50]}...' with model {model}: {e}"
+            )
+            raise  # Re-raise the exception after logging for higher-level handling
+
+    async def query(
+        self,
+        query_text: str,
+        model: str,
+        n_results: int = 4,
+        min_similarity: float = 0.39,
+    ) -> List[QueryResult]:
+        """Query a specific model's collection and return document results.
+
+        Args:
+            query_text: Text to search for
+            model: Model to use for querying
+            n_results: Maximum number of results to return
+            min_similarity: Minimum similarity threshold (0-1)
+
+        Returns:
+            List of QueryResult objects from the model
+        """
+        if not query_text.strip():
+            logger.warning("Empty query text provided")
+            return []
+
+        collection = await self._get_collection(model)
+        if not collection:
+            return []
+
+        try:
+            query_embedding = await self._get_embedding(query_text, model)
+
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=n_results,
+                include=["documents", "metadatas", "distances"],
+            )
+          
+            matched_results = []
+
+            if results["documents"] and results["documents"][0]:
+              
+                for doc, metadata, distance in zip(
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0],
+                ):
+                    
+                    similarity = 1 - distance
+                    if similarity >= min_similarity:
+                        matched_results.append(
+                            QueryResult(
+                                model=model,
+                                document_id=metadata.get("id", "unknown"),
+                                content=doc,
+                                similarity=similarity,
+                                metadata=metadata,
+                            )
+                        )
+
+            return matched_results
+
+        except Exception as e:
+            logger.error(f"Error during query operation: {e}")
+            return []
+
+    async def parallel_query(
+        self, query_text: str, n_results: int = 4, min_similarity: float = 0.39
+    ) -> List[QueryResult]:
+        """Execute queries across all available models in parallel and combine results.
+
+        Args:
+            query_text: The text to search for
+            n_results: Maximum number of results per model
+            min_similarity: Minimum similarity threshold for including results
+
+        Returns:
+            List of QueryResult objects sorted by similarity score, from highest to lowest.
+        """
+        models = self.get_available_models()
+        if not models:
+            logger.warning("No models available for querying")
+            return []
+
+        tasks = [
+            self.query(
+                query_text=query_text,
+                model=model,
+                n_results=n_results,
+                min_similarity=min_similarity,
+            )
+            for model in models
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        combined_results = []
+        for model_results in results:
+
+            if isinstance(model_results, list):  # Check if results are as expected
+                combined_results.extend(model_results)
+            else:
+                logger.error(
+                    f"Unexpected result type from model query: {type(model_results)}"
+                )
+
+        # Sort and return results based on similarity
+        return sorted(combined_results, key=lambda x: x.similarity, reverse=True)
+
+    def get_available_models(self) -> List[str]:
+        """Get list of available models with collection statistics.
+
+        Returns:
+            List of model names with available collections
+        """
+        try:
+            # In ChromaDB v0.6.0, list_collections returns collection names directly
+            collection_names = self.client.list_collections()
+
+            # Log detailed collection statistics
+            for name in collection_names:
+                try:
+                    collection = self.client.get_collection(name=name)
+                    count = collection.count()
+                    
+                except Exception as e:
+                    logger.error(f"Error accessing collection '{name}': {e}")
+
+            return collection_names
+
+        except Exception as e:
+            logger.error(f"Error listing collections: {e}")
+            return []
+
+    async def cleanup(self):
+        """Cleanup resources with enhanced error handling."""
+        try:
+            # Clear embedding cache
+            self._embedding_cache.clear()
+
+            # Shutdown thread pool
+            self.executor.shutdown(wait=True)
+
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+            raise
+
+
+class QueryInterface:
+    """Interface for interacting with the query processor."""
+
+    def __init__(self, db_path: str):
+        """Initialize the query interface.
+
+        Args:
+            db_path: Path to the ChromaDB database
+        """
+        self.processor = QueryProcessor(db_path)
+        self._shutdown_event = asyncio.Event()
+
+    async def setup(self):
+        """Initialize the interface and set up signal handlers."""
+        # Set up graceful shutdown handlers
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, self._signal_handler)
+
+    def _signal_handler(self, signum, frame):
+        """Handle shutdown signals gracefully."""
+        console.print("\n[yellow]Shutting down gracefully...[/yellow]")
+        self._shutdown_event.set()
+
+    async def interactive_query(self):
+        """Start an interactive query session."""
+        await self.setup()
+
+        console.print("\n[cyan]Enter your queries (press Ctrl+C to exit):[/cyan]")
+
+        while not self._shutdown_event.is_set():
+            try:
+                # Get query from user
+                query = await asyncio.get_event_loop().run_in_executor(
+                    None, input, "\nQuery: "
+                )
+
+                if not query.strip():
+                    continue
+
+                # Execute parallel query with progress indication
+                with Progress(
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    console=console,
+                ) as progress:
+                    task = progress.add_task("[cyan]Querying all models...", total=None)
+
+                    results = await self.processor.parallel_query(query)
+                    progress.update(task, advance=1)
+
+                # Display results
+                if not results:
+                    console.print("[yellow]No matching results found[/yellow]")
+                    continue
+
+                console.print("\n[green]Results:[/green]")
+                for i, result in enumerate(results[:10], 1):
+                    console.print(
+                        f"\n[cyan]{i}. Model: {result.model}[/cyan]"
+                        f"\nSimilarity: {result.similarity:.39%}"
+                        f"\nDocument: {result.document_id}"
+                        f"\nContent: {result.content[:5000]}"
+                    )
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error processing query: {e}")
+                console.print(f"[red]Error: {str(e)}[/red]")
+
+    async def cleanup(self):
+        """Cleanup resources."""
+        await self.processor.cleanup()
+
+
+async def get_query_interface(db_path: str) -> QueryInterface:
+    """Factory function to create and initialize a QueryInterface instance.
+
+    Args:
+        db_path: Path to the ChromaDB database
+
+    Returns:
+        Initialized QueryInterface instance
+    """
+    interface = QueryInterface(db_path)
+    await interface.setup()
+    return interface
+
+================================================================================
+
+### FILE: __init__.py ###
+### DIRECTORY: .\src\services\query ###
+### METADATA: Size=8778 bytes, Modified=2025-01-01 17:29:35, Permissions=666 ###
+### LINE COUNTS: Total=235, Blank=36, Comments=10 ###
+----------------------------------------
+from pathlib import Path
+import logging
+from typing import List, Dict, Optional, Union
+from chromadb.config import Settings
+import chromadb
+from langchain_ollama import OllamaEmbeddings
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from rich.console import Console
+
+logger = logging.getLogger(__name__)
+console = Console()
+
+
+@dataclass
+class QueryResult:
+    """Data class to store query results."""
+
+    model: str
+    document_id: str
+    content: str
+    distance: float
+    metadata: Dict
+
+
+class QueryProcessor:
+    """Handles querying operations for the vector database."""
+
+    def __init__(self, db_path: str, models: Optional[List[str]] = None):
+        """Initialize the query processor.
+
+        Args:
+            db_path: Path to the ChromaDB database
+            models: List of embedding models to query. If None, uses all available models.
+        """
+        self.db_path = Path(db_path)
+        self.models = models or [
+            "bge-m3",
+            "paraphrase-multilingual",
+            "mxbai-embed-large",
+            "nomic-embed-text",
+        ]
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.client = chromadb.PersistentClient(
+            path=str(self.db_path), settings=Settings(anonymized_telemetry=False)
+        )
+
+    async def query(
+        self,
+        query_text: str,
+        n_results: int = 5,
+        min_similarity: float = 0.7,
+        specific_model: Optional[str] = None,
+    ) -> List[QueryResult]:
+        """Query the vector database across all models or a specific model.
+
+        Args:
+            query_text: The text to search for
+            n_results: Number of results to return per model
+            min_similarity: Minimum similarity threshold (0-1)
+            specific_model: Optional specific model to query
+
+        Returns:
+            List of QueryResult objects sorted by relevance
+        """
+        models_to_query = [specific_model] if specific_model else self.models
+        all_results = []
+
+        for model in models_to_query:
+            try:
+                # Get embeddings for the query
+                loop = asyncio.get_event_loop()
+                emb = OllamaEmbeddings(model=model)
+                query_embedding = await loop.run_in_executor(
+                    self.executor, lambda: emb.embed_documents([query_text])
+                )
+
+                # Get the collection for this model
+                try:
+                    collection = self.client.get_collection(name=model)
+                except Exception as e:
+                    logger.warning(f"Collection not found for model {model}: {e}")
+                    continue
+
+                # Query the collection
+                results = collection.query(
+                    query_embeddings=query_embedding,
+                    n_results=n_results,
+                    include=["documents", "metadatas", "distances"],
+                )
+
+                # Process results
+                for idx, (doc, metadata, distance) in enumerate(
+                    zip(
+                        results["documents"][0],
+                        results["metadatas"][0],
+                        results["distances"][0],
+                    )
+                ):
+                    # Convert distance to similarity score (1 - distance for cosine distance)
+                    similarity = 1 - distance
+
+                    if similarity >= min_similarity:
+                        all_results.append(
+                            QueryResult(
+                                model=model,
+                                document_id=metadata.get("json_path", f"doc_{idx}"),
+                                content=doc,
+                                distance=distance,
+                                metadata=metadata,
+                            )
+                        )
+
+            except Exception as e:
+                logger.error(f"Error querying model {model}: {e}")
+                continue
+
+        # Sort results by distance (lower is better)
+        all_results.sort(key=lambda x: x.distance)
+        return all_results
+
+    def get_available_models(self) -> List[str]:
+        """Get list of available models in the database."""
+        collections = self.client.list_collections()
+        return [collection.name for collection in collections]
+
+    async def get_document_by_id(self, doc_id: str) -> Optional[Dict]:
+        """Retrieve a specific document by its ID."""
+        for model in self.models:
+            try:
+                collection = self.client.get_collection(name=model)
+                results = collection.get(
+                    where={"json_path": doc_id}, include=["documents", "metadatas"]
+                )
+                if results["documents"]:
+                    return {
+                        "content": results["documents"][0],
+                        "metadata": results["metadatas"][0],
+                    }
+            except Exception as e:
+                logger.debug(f"Error getting document from {model}: {e}")
+                continue
+        return None
+
+    async def cleanup(self):
+        """Cleanup resources."""
+        self.executor.shutdown(wait=True)
+
+
+class QueryInterface:
+    """User interface for querying the vector database."""
+
+    def __init__(self, db_path: str):
+        """Initialize the query interface.
+
+        Args:
+            db_path: Path to the ChromaDB database
+        """
+        self.processor = QueryProcessor(db_path)
+        self.console = Console()
+
+    async def interactive_query(self):
+        """Run an interactive query session."""
+        try:
+            while True:
+                # Get query parameters
+                self.console.print(
+                    "\n[cyan]Enter your query (or 'exit' to quit):[/cyan]"
+                )
+                query = input().strip()
+
+                if query.lower() == "exit":
+                    break
+
+                self.console.print(
+                    "[cyan]Number of results per model (default: 5):[/cyan]"
+                )
+                try:
+                    n_results = int(input().strip() or "5")
+                except ValueError:
+                    n_results = 5
+
+                self.console.print(
+                    "[cyan]Minimum similarity threshold (0-1, default: 0.7):[/cyan]"
+                )
+                try:
+                    min_similarity = float(input().strip() or "0.7")
+                except ValueError:
+                    min_similarity = 0.7
+
+                # Get available models
+                available_models = self.processor.get_available_models()
+                self.console.print(f"\nAvailable models: {', '.join(available_models)}")
+                self.console.print(
+                    "[cyan]Specific model to use (press Enter for all):[/cyan]"
+                )
+                specific_model = input().strip()
+                if specific_model and specific_model not in available_models:
+                    self.console.print(
+                        "[red]Invalid model selected. Using all models.[/red]"
+                    )
+                    specific_model = None
+
+                # Execute query
+                self.console.print("\n[cyan]Searching...[/cyan]")
+                results = await self.processor.query(
+                    query,
+                    n_results=n_results,
+                    min_similarity=min_similarity,
+                    specific_model=specific_model,
+                )
+
+                # Display results
+                if not results:
+                    self.console.print("[yellow]No results found.[/yellow]")
+                    continue
+
+                for i, result in enumerate(results, 1):
+                    similarity = (1 - result.distance) * 100
+                    self.console.print(f"\n[green]Result {i}:[/green]")
+                    self.console.print(f"Model: {result.model}")
+                    self.console.print(f"Document: {result.document_id}")
+                    self.console.print(f"Similarity: {similarity:.2f}%")
+                    self.console.print("Content preview:", result.content[:200] + "...")
+
+        except KeyboardInterrupt:
+            self.console.print("\n[yellow]Query session terminated.[/yellow]")
+        finally:
+            await self.processor.cleanup()
+
+
+async def get_query_interface(db_path: str) -> QueryInterface:
+    """Factory function to create a QueryInterface instance."""
+    return QueryInterface(db_path)
+
+================================================================================

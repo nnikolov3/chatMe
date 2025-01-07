@@ -15,7 +15,6 @@ from PIL import Image
 from pdf2image import convert_from_path
 from ollama import AsyncClient
 import pytesseract
-import easyocr
 import multiprocessing
 from datetime import date
 
@@ -31,7 +30,6 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger(__name__)
-reader = easyocr.Reader(["en"])
 
 
 class VisionPDFProcessor:
@@ -94,7 +92,7 @@ class VisionPDFProcessor:
             return (pdf_path, False, 3)
 
         num_images = len(list(images_path.glob("*.*")))
-        text = await self._vision_process_page(images_path, num_images)
+        text = await self._vision_process_page(images_path)
 
         self.append_to_json_file(output_path, file_hash, pdf_path, text, num_images)
         return (pdf_path, True, 1)
@@ -127,7 +125,7 @@ class VisionPDFProcessor:
 
         return image_dir
 
-    async def _vision_process_page(self, images_path, num_images):
+    async def _vision_process_page(self, images_path):
         async def process_image(image_path, i):
             with Image.open(image_path) as image:
                 text = pytesseract.image_to_string(image)

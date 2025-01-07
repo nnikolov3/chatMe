@@ -333,3 +333,507 @@ Radbo...
 2025-01-06 11:12:02,190 - INFO - NVIDIA Management Library shut down successfully
 2025-01-06 11:12:02,315 - INFO - Resource manager cleanup completed
 2025-01-06 11:12:02,316 - INFO - Resource cleanup completed
+2025-01-06 14:45:56,720 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 14:45:56,721 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 14:45:56,722 - INFO - Resource monitoring started
+2025-01-06 14:45:56,722 - INFO - Resource monitoring started successfully
+2025-01-06 14:46:51,667 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:46:52,196 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:46:54,481 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:46:57,851 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:47:03,693 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:47:04,381 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:47:06,823 - WARNING - Number of requested results 4 is greater than number of elements in index 2, updating n_results = 2
+2025-01-06 14:47:10,736 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:47:10,778 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:47:12,611 - WARNING - Number of requested results 4 is greater than number of elements in index 2, updating n_results = 2
+2025-01-06 14:47:12,617 - WARNING - Number of requested results 4 is greater than number of elements in index 2, updating n_results = 2
+2025-01-06 14:47:12,824 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:47:12,827 - WARNING - Number of requested results 4 is greater than number of elements in index 2, updating n_results = 2
+2025-01-06 14:47:14,727 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:47:18,889 - WARNING - Number of requested results 4 is greater than number of elements in index 2, updating n_results = 2
+2025-01-06 14:47:18,891 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 14:47:19,196 - ERROR - Error in chat interface
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\main.py", line 116, in start_chat_interface
+    response = await chat.chat_processor()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 151, in chat_processor
+    result = await self.get_voted_response(question, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 140, in get_voted_response
+    responses = await self._get_responses(prompt)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 47, in _get_responses
+    async with AsyncClient() as client:
+               ^^^^^^^^^^^^^
+TypeError: 'AsyncClient' object does not support the asynchronous context manager protocol
+2025-01-06 14:47:19,202 - INFO - Resource monitoring stopped
+2025-01-06 14:47:19,202 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 14:47:19,282 - INFO - Resource manager cleanup completed
+2025-01-06 14:47:19,283 - INFO - Resource cleanup completed
+2025-01-06 14:48:46,146 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 14:48:46,146 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 14:48:46,150 - INFO - Resource monitoring started
+2025-01-06 14:48:46,150 - INFO - Resource monitoring started successfully
+2025-01-06 14:49:44,876 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:49:45,465 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:49:46,056 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:49:52,424 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:49:57,255 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:50:00,222 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:50:01,845 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:50:02,681 - WARNING - Number of requested results 4 is greater than number of elements in index 3, updating n_results = 3
+2025-01-06 14:50:02,687 - WARNING - Number of requested results 4 is greater than number of elements in index 3, updating n_results = 3
+2025-01-06 14:50:08,748 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:50:08,752 - WARNING - Number of requested results 4 is greater than number of elements in index 3, updating n_results = 3
+2025-01-06 14:50:15,128 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:50:15,132 - WARNING - Number of requested results 4 is greater than number of elements in index 3, updating n_results = 3
+2025-01-06 14:50:18,766 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:50:21,222 - WARNING - Number of requested results 4 is greater than number of elements in index 3, updating n_results = 3
+2025-01-06 14:50:21,225 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 14:50:21,532 - ERROR - Error in chat interface
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\main.py", line 116, in start_chat_interface
+    response = await chat.chat_processor()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 151, in chat_processor
+    result = await self.get_voted_response(question, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 140, in get_voted_response
+    responses = await self._get_responses(prompt)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 47, in _get_responses
+    with AsyncClient() as client:
+         ^^^^^^^^^^^^^
+TypeError: 'AsyncClient' object does not support the context manager protocol
+2025-01-06 14:50:21,536 - INFO - Resource monitoring stopped
+2025-01-06 14:50:21,537 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 14:50:21,624 - INFO - Resource manager cleanup completed
+2025-01-06 14:50:21,625 - INFO - Resource cleanup completed
+2025-01-06 14:52:12,453 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 14:52:12,453 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 14:52:12,454 - INFO - Resource monitoring started
+2025-01-06 14:52:12,455 - INFO - Resource monitoring started successfully
+2025-01-06 14:52:40,074 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:52:42,238 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:52:42,316 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:52:47,875 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:52:52,710 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:52:56,567 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:52:57,854 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:52:58,200 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:53:05,585 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:53:10,616 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:53:11,083 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 14:53:11,413 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 404 Not Found"
+2025-01-06 14:53:11,413 - ERROR - Error in chat interface
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 51, in _get_responses
+    results = await asyncio.gather(*tasks)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\site-packages\ollama\_client.py", line 834, in chat
+    return await self._request(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\site-packages\ollama\_client.py", line 679, in _request
+    return cls(**(await self._request_raw(*args, **kwargs)).json())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\site-packages\ollama\_client.py", line 624, in _request_raw
+    raise ResponseError(e.response.text, e.response.status_code) from None
+ollama._types.ResponseError: model "qwen2.5" not found, try pulling it first
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\main.py", line 116, in start_chat_interface
+    response = await chat.chat_processor()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 156, in chat_processor
+    result = await self.get_voted_response(question, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 145, in get_voted_response
+    responses = await self._get_responses(prompt)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 56, in _get_responses
+    await client.close()  # Ensure the client is closed after use
+          ^^^^^^^^^^^^
+AttributeError: 'AsyncClient' object has no attribute 'close'
+2025-01-06 14:53:11,417 - INFO - Resource monitoring stopped
+2025-01-06 14:53:11,418 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 14:53:11,493 - INFO - Resource manager cleanup completed
+2025-01-06 14:53:11,493 - INFO - Resource cleanup completed
+2025-01-06 14:54:36,382 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 14:54:36,382 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 14:54:36,384 - INFO - Resource monitoring started
+2025-01-06 14:54:36,384 - INFO - Resource monitoring started successfully
+2025-01-06 14:54:47,947 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:54:50,415 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:54:50,658 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:54:56,202 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:55:01,031 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:55:03,211 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:55:09,606 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:55:11,335 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:55:11,437 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:55:17,944 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:55:18,023 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 14:55:18,340 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 404 Not Found"
+2025-01-06 14:55:18,341 - ERROR - Error in chat interface
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\main.py", line 116, in start_chat_interface
+    response = await chat.chat_processor()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 153, in chat_processor
+    result = await self.get_voted_response(question, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 142, in get_voted_response
+    responses = await self._get_responses(prompt)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 50, in _get_responses
+    results = await asyncio.gather(*tasks)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\site-packages\ollama\_client.py", line 834, in chat
+    return await self._request(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\site-packages\ollama\_client.py", line 679, in _request
+    return cls(**(await self._request_raw(*args, **kwargs)).json())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\site-packages\ollama\_client.py", line 624, in _request_raw
+    raise ResponseError(e.response.text, e.response.status_code) from None
+ollama._types.ResponseError: model "qwen2.5" not found, try pulling it first
+2025-01-06 14:55:18,343 - INFO - Resource monitoring stopped
+2025-01-06 14:55:18,345 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 14:55:18,413 - INFO - Resource manager cleanup completed
+2025-01-06 14:55:18,415 - INFO - Resource cleanup completed
+2025-01-06 14:56:39,201 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 14:56:39,201 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 14:56:39,201 - INFO - Resource monitoring started
+2025-01-06 14:56:39,201 - INFO - Resource monitoring started successfully
+2025-01-06 14:56:52,752 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:56:52,852 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:56:53,278 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:56:59,957 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:57:03,438 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:57:05,733 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:57:11,949 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:57:12,090 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:57:12,591 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:57:19,324 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 14:57:20,117 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 14:57:46,654 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 14:57:52,876 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 14:58:30,179 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:04:31,137 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:31,232 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:31,649 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:38,391 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:41,829 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:44,332 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:50,719 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:57,068 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:57,755 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:59,234 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:04:59,240 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 15:05:24,988 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:05:24,994 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:05:39,020 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:06:04,563 - INFO - Resource monitoring stopped
+2025-01-06 15:06:04,565 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 15:06:04,648 - INFO - Resource manager cleanup completed
+2025-01-06 15:06:04,648 - INFO - Resource cleanup completed
+2025-01-06 15:12:47,005 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:12:47,006 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:12:47,007 - INFO - Resource monitoring started
+2025-01-06 15:12:47,007 - INFO - Resource monitoring started successfully
+2025-01-06 15:12:58,522 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:12:59,409 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:13:01,375 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:13:01,454 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:13:08,200 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:13:12,472 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 15:13:38,897 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:13:45,063 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:14:06,976 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:14:58,619 - ERROR - Error in chat interface
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\main.py", line 118, in start_chat_interface
+    if input("Do you want to ask another question? (y/n): ").lower() != "y":
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+EOFError
+2025-01-06 15:14:58,621 - INFO - Resource monitoring stopped
+2025-01-06 15:14:58,622 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 15:14:58,701 - INFO - Resource manager cleanup completed
+2025-01-06 15:14:58,701 - INFO - Resource cleanup completed
+2025-01-06 15:16:33,009 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:16:33,009 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:16:33,011 - INFO - Resource monitoring started
+2025-01-06 15:16:33,011 - INFO - Resource monitoring started successfully
+2025-01-06 15:16:44,998 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:16:46,201 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:16:48,446 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:16:49,815 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:16:54,816 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:16:59,119 - ERROR - Error in chat interface
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\main.py", line 116, in start_chat_interface
+    response = await chat.chat_processor()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 144, in chat_processor
+    result = await self.get_voted_response(question, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nikol\MyDev\chatMe\src\services\chat\chat_processor.py", line 131, in get_voted_response
+    context_text = context.get("content", "") if context else ""
+                   ^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+2025-01-06 15:16:59,122 - INFO - Resource monitoring stopped
+2025-01-06 15:16:59,123 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 15:16:59,196 - INFO - Resource manager cleanup completed
+2025-01-06 15:16:59,196 - INFO - Resource cleanup completed
+2025-01-06 15:18:25,924 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:18:25,925 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:18:25,925 - INFO - Resource monitoring started
+2025-01-06 15:18:25,925 - INFO - Resource monitoring started successfully
+2025-01-06 15:18:47,549 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:18:52,669 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:18:59,649 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:19:05,806 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:19:09,778 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:19:41,747 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:19:47,887 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:20:23,588 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:20:59,736 - INFO - Resource monitoring stopped
+2025-01-06 15:20:59,737 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 15:20:59,815 - INFO - Resource manager cleanup completed
+2025-01-06 15:20:59,815 - INFO - Resource cleanup completed
+2025-01-06 15:27:29,686 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:27:29,687 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:27:29,688 - INFO - Resource monitoring started
+2025-01-06 15:27:29,688 - INFO - Resource monitoring started successfully
+2025-01-06 15:27:42,737 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:27:43,340 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:27:45,339 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:27:45,424 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:27:52,148 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:28:22,286 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:28:58,060 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:29:04,562 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:29:55,576 - INFO - Resource monitoring stopped
+2025-01-06 15:29:55,582 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 15:29:55,667 - INFO - Resource manager cleanup completed
+2025-01-06 15:29:55,667 - INFO - Resource cleanup completed
+2025-01-06 15:35:18,423 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:35:18,423 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:35:18,424 - INFO - Resource monitoring started
+2025-01-06 15:35:18,424 - INFO - Resource monitoring started successfully
+2025-01-06 15:35:33,190 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:35:34,081 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:35:36,048 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:35:36,159 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:35:42,826 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:39:30,351 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:39:30,352 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:39:30,352 - INFO - Resource monitoring started
+2025-01-06 15:39:30,353 - INFO - Resource monitoring started successfully
+2025-01-06 15:40:07,356 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:40:12,369 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:40:12,992 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:40:13,528 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:40:19,962 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:40:21,135 - ERROR - Error retrieving context: ChatProcessor.get_highest_similarity() missing 1 required positional argument: 'result'
+2025-01-06 15:40:40,533 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:40:46,588 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:41:01,092 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:41:43,124 - ERROR - Error in chat interface
+Traceback (most recent call last):
+  File "C:\Users\nikol\MyDev\chatMe\main.py", line 118, in start_chat_interface
+    if input("Do you want to ask another question? (y/n): ").lower() != "y":
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+EOFError
+2025-01-06 15:41:43,138 - INFO - Resource monitoring stopped
+2025-01-06 15:41:43,144 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 15:41:43,253 - INFO - Resource manager cleanup completed
+2025-01-06 15:41:43,253 - INFO - Resource cleanup completed
+2025-01-06 15:41:51,185 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:41:51,186 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:41:51,187 - INFO - Resource monitoring started
+2025-01-06 15:41:51,187 - INFO - Resource monitoring started successfully
+2025-01-06 15:42:22,384 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:42:23,586 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:42:25,804 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:42:27,225 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:42:32,224 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:42:36,331 - ERROR - Error retrieving context: ChatProcessor.get_highest_similarity() missing 1 required positional argument: 'result'
+2025-01-06 15:42:56,183 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:45:00,001 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:45:00,001 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:45:00,002 - INFO - Resource monitoring started
+2025-01-06 15:45:00,002 - INFO - Resource monitoring started successfully
+2025-01-06 15:45:20,580 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:45:21,195 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:45:23,163 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:45:23,285 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:45:29,945 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:45:34,306 - ERROR - Error retrieving context: ChatProcessor.get_highest_similarity() missing 1 required positional argument: 'result'
+2025-01-06 15:45:54,651 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:46:51,932 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:46:51,932 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:46:51,933 - INFO - Resource monitoring started
+2025-01-06 15:46:51,933 - INFO - Resource monitoring started successfully
+2025-01-06 15:47:33,955 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:47:34,837 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:47:36,897 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:47:38,193 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:47:43,196 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:47:47,899 - ERROR - Error retrieving context: 'str' object is not callable
+2025-01-06 15:54:34,936 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:54:34,936 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:54:34,937 - INFO - Resource monitoring started
+2025-01-06 15:54:34,937 - INFO - Resource monitoring started successfully
+2025-01-06 15:55:02,677 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:55:03,338 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:55:05,405 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:55:06,800 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:55:06,936 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:55:10,285 - ERROR - Error retrieving context: 'QueryResult' object has no attribute 'get'
+2025-01-06 15:56:12,749 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 15:56:12,750 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 15:56:12,750 - INFO - Resource monitoring started
+2025-01-06 15:56:12,750 - INFO - Resource monitoring started successfully
+2025-01-06 15:56:50,097 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:56:51,063 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:56:52,958 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:56:53,069 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:56:59,712 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 15:57:29,891 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:57:36,266 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 15:58:15,987 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:16:59,970 - INFO - Resource monitoring stopped
+2025-01-06 16:16:59,978 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 16:17:00,082 - INFO - Resource manager cleanup completed
+2025-01-06 16:17:00,082 - INFO - Resource cleanup completed
+2025-01-06 16:19:45,394 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 16:19:45,394 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 16:19:45,395 - INFO - Resource monitoring started
+2025-01-06 16:19:45,395 - INFO - Resource monitoring started successfully
+2025-01-06 16:19:45,399 - INFO - Vector Process
+2025-01-06 16:19:45,399 - INFO - JSON Paths ['src\\data\\json\\2312.07783v3_071e5e75.json']
+2025-01-06 16:19:45,815 - INFO - Converting to text src\data\json\2312.07783v3_071e5e75.json
+2025-01-06 16:19:54,198 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:19:54,463 - ERROR - Error processing embedding for model mxbai-embed-large: object of type 'ellipsis' has no len()
+2025-01-06 16:19:54,498 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:19:54,798 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:20:00,139 - ERROR - Error processing embedding for model bge-m3: object of type 'ellipsis' has no len()
+2025-01-06 16:20:00,142 - ERROR - Error processing embedding for model nomic-embed-text: object of type 'ellipsis' has no len()
+2025-01-06 16:20:01,504 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:20:04,963 - INFO - FakeTensor cache stats:
+2025-01-06 16:20:04,964 - INFO -   cache_hits: 0
+2025-01-06 16:20:04,964 - INFO -   cache_misses: 0
+2025-01-06 16:20:05,213 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:20:05,345 - ERROR - Error processing embedding for model paraphrase-multilingual: object of type 'ellipsis' has no len()
+2025-01-06 16:20:05,346 - ERROR - Error processing embedding for model all-minilm: object of type 'ellipsis' has no len()
+2025-01-06 16:20:05,348 - ERROR - Embedding returned None
+2025-01-06 16:20:05,348 - ERROR - Embedding returned None
+2025-01-06 16:20:05,348 - ERROR - Embedding returned None
+2025-01-06 16:20:05,348 - ERROR - Embedding returned None
+2025-01-06 16:20:05,348 - ERROR - Embedding returned None
+2025-01-06 16:20:05,349 - INFO - Resource monitoring stopped
+2025-01-06 16:20:05,351 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 16:20:05,431 - INFO - Resource manager cleanup completed
+2025-01-06 16:20:05,431 - INFO - Resource cleanup completed
+2025-01-06 16:24:30,929 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 16:24:30,930 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 16:24:30,930 - INFO - Resource monitoring started
+2025-01-06 16:24:30,931 - INFO - Resource monitoring started successfully
+2025-01-06 16:24:30,934 - INFO - Vector Process
+2025-01-06 16:24:30,934 - INFO - JSON Paths ['src\\data\\json\\2312.07783v3_071e5e75.json']
+2025-01-06 16:24:31,129 - INFO - Converting to text src\data\json\2312.07783v3_071e5e75.json
+2025-01-06 16:24:42,596 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:24:42,613 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:24:45,038 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:24:49,859 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:24:55,088 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:24:58,207 - INFO - Resource monitoring stopped
+2025-01-06 16:24:58,208 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 16:24:58,285 - INFO - Resource manager cleanup completed
+2025-01-06 16:24:58,285 - INFO - Resource cleanup completed
+2025-01-06 16:26:30,260 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 16:26:30,261 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 16:26:30,262 - INFO - Resource monitoring started
+2025-01-06 16:26:30,262 - INFO - Resource monitoring started successfully
+2025-01-06 16:27:10,750 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:27:11,343 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:27:12,616 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:27:13,172 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:27:13,196 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:27:13,224 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:27:14,134 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:27:18,908 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:27:19,197 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:27:19,229 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:27:57,030 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:28:03,298 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:28:52,487 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:29:51,128 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:29:51,685 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:29:53,647 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:29:58,112 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:29:58,122 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:29:58,131 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:29:59,350 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:30:04,389 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:30:04,431 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:30:04,439 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:30:29,953 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:30:36,449 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:31:13,432 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:32:10,862 - INFO - Resource monitoring stopped
+2025-01-06 16:32:10,872 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 16:32:10,983 - INFO - Resource manager cleanup completed
+2025-01-06 16:32:10,983 - INFO - Resource cleanup completed
+2025-01-06 16:32:38,497 - INFO - NVIDIA Management Library initialized successfully
+2025-01-06 16:32:38,497 - INFO - Resource Manager initialized with 8 physical CPUs, 31.8GB RAM, 1 GPUs
+2025-01-06 16:32:38,497 - INFO - Resource monitoring started
+2025-01-06 16:32:38,497 - INFO - Resource monitoring started successfully
+2025-01-06 16:33:27,267 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:33:27,807 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:33:28,680 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:33:28,707 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:33:30,021 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:33:30,112 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:33:32,220 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:33:34,531 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:33:34,560 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:33:34,586 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:34:06,739 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:34:12,994 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:34:42,044 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:35:57,588 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:35:58,126 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:36:00,122 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:36:04,724 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:36:04,735 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:36:04,744 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:36:05,898 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:36:10,850 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:36:11,154 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:36:11,162 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:36:37,462 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:36:37,463 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:36:43,832 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:37:19,230 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:37:19,775 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:37:21,767 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:37:26,469 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:37:26,478 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:37:26,487 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:37:27,486 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:37:32,411 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2025-01-06 16:37:32,854 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:37:32,864 - WARNING - Number of requested results 4 is greater than number of elements in index 1, updating n_results = 1
+2025-01-06 16:37:58,716 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:38:11,350 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:38:39,812 - INFO - HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2025-01-06 16:39:52,796 - INFO - Resource monitoring stopped
+2025-01-06 16:39:52,796 - INFO - NVIDIA Management Library shut down successfully
+2025-01-06 16:39:52,880 - INFO - Resource manager cleanup completed
+2025-01-06 16:39:52,880 - INFO - Resource cleanup completed

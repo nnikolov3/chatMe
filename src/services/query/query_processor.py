@@ -66,7 +66,7 @@ class QueryProcessor:
                     anonymized_telemetry=False, allow_reset=True, is_persistent=True
                 ),
             )
-            logger.info(f"QueryProcessor initialized with database at {db_path}")
+
         except Exception as e:
             logger.error(f"Failed to initialize ChromaDB client: {e}")
             raise
@@ -115,41 +115,16 @@ class QueryProcessor:
             return None
 
     async def _get_embedding(self, text: str, model: str) -> List[float]:
-        """Get embedding for text with caching.
-
-        Args:
-            text: Text to embed
-            model: Model to use for embedding
-
-        Returns:
-            List of embedding values
-        """
-        cache_key = f"{model}:{hash(text)}"
-        if cache_key in self._embedding_cache:
-            return self._embedding_cache[cache_key]
-
+        """Get embedding for query without storing."""
         try:
             emb = OllamaEmbeddings(model=model)
             embedding = await asyncio.get_event_loop().run_in_executor(
                 self.executor, lambda: emb.embed_documents([text])
             )
-
-            # Cache the result if cache isn't full
-            if len(self._embedding_cache) < self._cache_size_limit:
-                self._embedding_cache[cache_key] = embedding[0]
-
-            # Log the embedding result if needed
-            logger.info(
-                f"Embedding result for {model}: {embedding[0][:4]}..."
-            )  # Only log first few elements for brevity
-
-            return embedding[0]
-
+            return embedding[0]  # Return just the embedding vector
         except Exception as e:
-            logger.error(
-                f"Error generating embedding for text '{text[:50]}...' with model {model}: {e}"
-            )
-            raise  # Re-raise the exception after logging for higher-level handling
+            logger.error(f"Error generating query embedding: {e}")
+            raise
 
     async def query(
         self,
@@ -158,46 +133,33 @@ class QueryProcessor:
         n_results: int = 4,
         min_similarity: float = 0.39,
     ) -> List[QueryResult]:
-        """Query a specific model's collection and return document results.
-
-        Args:
-            query_text: Text to search for
-            model: Model to use for querying
-            n_results: Maximum number of results to return
-            min_similarity: Minimum similarity threshold (0-1)
-
-        Returns:
-            List of QueryResult objects from the model
-        """
+        """Query only - no storage."""
         if not query_text.strip():
-            logger.warning("Empty query text provided")
-            return []
-
-        collection = await self._get_collection(model)
-        if not collection:
             return []
 
         try:
-            query_embedding = await self._get_embedding(query_text, model)
+            # Get embedding without storage
+            query_embedding = await self._get_embedding(
+                query_text, model
+            )  # Modified to not store
+            collection = await self._get_collection(model)
 
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=n_results,
                 include=["documents", "metadatas", "distances"],
             )
-            # logger.info(f"Query results {results}")
+
             matched_results = []
 
             if results["documents"] and results["documents"][0]:
-                logger.info(
-                    f"Found {len(results['documents'][0])} raw matches in {model} collection"
-                )
+
                 for doc, metadata, distance in zip(
                     results["documents"][0],
                     results["metadatas"][0],
                     results["distances"][0],
                 ):
-                    logger.info(f"Distance {distance}")
+
                     similarity = 1 - distance
                     if similarity >= min_similarity:
                         matched_results.append(
@@ -273,7 +235,7 @@ class QueryProcessor:
                 try:
                     collection = self.client.get_collection(name=name)
                     count = collection.count()
-                    logger.info(f"Collection '{name}' contains {count} documents")
+
                 except Exception as e:
                     logger.error(f"Error accessing collection '{name}': {e}")
 
@@ -292,7 +254,6 @@ class QueryProcessor:
             # Shutdown thread pool
             self.executor.shutdown(wait=True)
 
-            logger.info("QueryProcessor cleanup completed successfully")
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
             raise

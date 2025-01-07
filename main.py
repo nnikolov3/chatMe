@@ -8,9 +8,13 @@ import os
 import signal
 from typing import Optional
 from contextlib import asynccontextmanager
+import subprocess
 
 from src.helpers.processing_helper import get_helper
 from src.services.query.query_processor import get_query_interface
+from src.services.chat.chat_processor import (
+    ChatProcessor,
+)  # Changed from chat_processor to ChatProcessor
 
 # Initialize rich console for better output formatting
 console = Console()
@@ -107,12 +111,29 @@ class ApplicationManager:
         """Start the interactive chat interface with error handling."""
         console.print("[cyan]Starting chat interface...[/cyan]")
         try:
-            query_interface = await get_query_interface(str(self.helper.db_path))
-            await query_interface.interactive_query()
+            chat = ChatProcessor(self.helper.db_path)
+            while True:  # Keep chat running until user decides to exit
+                response = await chat.chat_processor()
+                console.print(f"[green]{response}[/green]")
+                if input("Do you want to ask another question? (y/n): ").lower() != "y":
+                    break
             return True
         except Exception as e:
-            logger.exception("Error in query interface")
-            console.print(f"[red]Error in query interface: {str(e)}[/red]")
+            logger.exception("Error in chat interface")
+            console.print(f"[red]Error in chat interface: {str(e)}[/red]")
+            return False
+
+    async def start_api_interface(self) -> bool:
+        """Start the API server interface."""
+        try:
+            subprocess.Popen(
+                ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+            )
+            console.print("[green]API server started at 0.0.0.0:8000[/green]")
+            return True
+        except Exception as e:
+            logger.exception("Failed to start API server")
+            console.print(f"[red]Failed to start API server: {str(e)}[/red]")
             return False
 
     async def export_metrics(self) -> bool:
@@ -159,23 +180,22 @@ async def main() -> int:
     parser.add_argument(
         "-p", "--process_pdf", action="store_true", help="Start processing PDFs to JSON"
     )
-
     parser.add_argument(
         "-d",
         "--process_db",
         action="store_true",
-        help="Start procesing JSON to ChromaDB embedings",
+        help="Start processing JSON to ChromaDB embeddings",
     )
     parser.add_argument(
         "-q", "--query", action="store_true", help="Start interactive query interface"
     )
-
     parser.add_argument(
         "-c", "--chat", action="store_true", help="Start interactive chat interface"
     )
     parser.add_argument(
         "--export-metrics", action="store_true", help="Export resource metrics"
     )
+    parser.add_argument("-a", "--api", action="store_true", help="Start the API server")
     args = parser.parse_args()
 
     # Initialize application manager
@@ -185,23 +205,21 @@ async def main() -> int:
     # Use context manager for helper lifecycle
     async with app_manager.managed_helper() as helper:
         try:
-            # Process PDFs if requested
             if args.process_pdf and not await app_manager.process_pdfs():
                 return 1
 
-            # Process vector database if requested
             if args.process_db and not await app_manager.process_vector_db():
                 return 1
 
-            # Start query interface if requested
             if args.query and not await app_manager.start_query_interface():
                 return 1
 
-            # Start chat interface if requested
             if args.chat and not await app_manager.start_chat_interface():
                 return 1
 
-            # Export metrics if requested
+            if args.api and not await app_manager.start_api_interface():
+                return 1
+
             if args.export_metrics and not await app_manager.export_metrics():
                 return 1
 

@@ -91,15 +91,8 @@ class VectorProcessor:
 
         return processed_text
 
-    async def process_text(self, texts: List[tuple]) -> bool:
-        """Process text into vector embeddings with enhanced content handling.
-
-        Args:
-            texts: List of (text, file_name) tuples to process
-
-        Returns:
-            bool indicating if at least one embedding was successful
-        """
+    async def process_text(self, texts: List[tuple]):
+        """Process text into vector embeddings with enhanced content handling."""
         if not texts:
             logger.error("Empty list provided for text processing")
             return False
@@ -133,12 +126,7 @@ class VectorProcessor:
             [emb.get("document", "") for emb in all_embeddings if emb]
         )
 
-        # Log the combined text, using an ellipsis for larger texts
-        logger.info(
-            f"Combined text for LLM: {combined_text[:100]}{'...' if len(combined_text) > 100 else ''}"
-        )
-
-        return bool(all_embeddings)
+        return combined_text
 
     async def _embed_text(
         self, text: str, model: str, file_name: str
@@ -149,6 +137,31 @@ class VectorProcessor:
             embedding = await asyncio.get_event_loop().run_in_executor(
                 self.executor, lambda: emb.embed_documents([text])
             )
+
+            text_hash = hashlib.md5(text.encode()).hexdigest()
+            collection = self.client.get_or_create_collection(
+                name=model,
+                metadata={
+                    "hnsw:space": "cosine",
+                    "timestamp": f"{datetime.now().isoformat(timespec="microseconds")}",
+                    "date": f"{datetime.date}",
+                    "model": model,
+                    "id": f"{text_hash}_{random.uniform(0.111111, 99.99999)}",
+                    "hash": text_hash,
+                },
+            )
+
+            # Check if similar content already exists
+            existing = collection.query(
+                query_embeddings=embedding,
+                n_results=1,
+                include=["metadatas"],
+            )
+
+            if existing["metadatas"] and existing["metadatas"][0]:
+                if existing["metadatas"][0][0].get("hash") == text_hash:
+                    logger.info(f"Skipping duplicate content with hash {text_hash}")
+                    return {"document": text, "model": model}
 
             text_hash = hashlib.md5(text.encode()).hexdigest()
 
@@ -184,7 +197,6 @@ class VectorProcessor:
                     }
                 ],
             )
-            logger.info(f"Successfully processed {file_name} with {model}")
             return {"document": text, "model": model}
 
         except Exception as e:
@@ -195,6 +207,5 @@ class VectorProcessor:
         """Cleanup resources and shutdown properly."""
         try:
             self.executor.shutdown(wait=True)
-            logger.info("Vector processor cleanup completed")
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")

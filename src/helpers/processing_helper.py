@@ -134,18 +134,18 @@ class ProcessingHelper:
             return {"status": "no_valid_content", "processed": 0}
 
         try:
-            success = await vector_processor.process_text(texts)
+            processed_text = await vector_processor.process_text(texts)
             return {
-                "status": "success" if success else "error",
-                "processed": len(texts) if success else 0,
+                "status": "success" if processed_text else "error",
+                "processed": len(texts) if processed_text else 0,
                 "total_files": len(json_paths),
+                "processed_text": processed_text
             }
         except Exception as e:
             logger.error(f"Error processing JSON to vector database: {e}")
             return {"status": "error", "error": str(e)}
 
     def process_json_paths(self, json_paths):
-        vector_processor = VectorProcessor(str(self.db_path))
         texts = []
         for json_path in json_paths:
             text = self.convert_json_to_text(json_path)
