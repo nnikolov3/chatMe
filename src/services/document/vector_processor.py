@@ -9,7 +9,6 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 import multiprocessing
 import hashlib
-from functools import reduce
 from datetime import datetime
 import random
 
@@ -60,30 +59,9 @@ class VectorProcessor:
         try:
             # Try to parse as JSON first
             content = json.loads(text)
-            extracted_text = []
+            extracted_text = [content["content"]["ocr"], content["content"]["pdf_text"]]
 
-            # Handle nested JSON structure
-            if isinstance(content, dict):
-                if "content" in content and "pages" in content["content"]:
-                    for page in content["content"]["pages"]:
-                        for page_content in page.values():
-                            if "ocr_text" in page_content:
-                                extracted_text.append(page_content["ocr_text"])
-
-                            if "visual_analysis" in page_content:
-                                extracted_text.append(page_content["visual_analysis"])
-
-            # Join all extracted text into one call
-            flattened = reduce(
-                lambda x, y: reduce(
-                    lambda a, b: a + b if isinstance(b, list) else a + [b],
-                    y if isinstance(y, list) else [y],
-                    x,
-                ),
-                extracted_text,
-                [],
-            )
-            processed_text = " ".join(flattened)
+            processed_text = " ".join(extracted_text)
 
         except json.JSONDecodeError:
             # Handle as plain text if not JSON

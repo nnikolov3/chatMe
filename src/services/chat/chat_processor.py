@@ -1,202 +1,321 @@
 import asyncio
-import multiprocessing
+import json
+from datetime import datetime
 from pathlib import Path
+import random
 from typing import Dict, List, Optional
-from ollama import AsyncClient
+from dataclasses import dataclass
 import logging
+import chromadb
+from chromadb.config import Settings
+from langchain_ollama import OllamaEmbeddings
+from rich.console import Console
+from rich.table import Table
+from rich.markdown import Markdown
+import textwrap
+import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
+import uuid
+from ollama import AsyncClient
+
+
 from ..query.query_processor import QueryProcessor
-from src.services.document.vector_processor import VectorProcessor
 
 logger = logging.getLogger(__name__)
+console = Console()
 
-# Define models and their initial weights
-models = ["qwen2.5:7b", "mistral", "llama3.2"]
-model_weights = {"qwen2.5:7b": 0.33333, "mistral": 0.33333, "llama3.2": 0.33333}
+emb_models = [
+    "mxbai-embed-large",
+    "nomic-embed-text",
+    "paraphrase-multilingual",
+    "bge-m3",
+]
+chat_models = ["dolphin3", "granite3.1-moe:3b", "falcon3"]
+
+max_workers = multiprocessing.cpu_count()
 
 
-class ChatProcessor:
-    def __init__(self, db_path: str, max_workers: int = multiprocessing.cpu_count()):
-        """Initialize the ChatProcessor with a configurable worker pool.
+@dataclass
+class ChatMessage:
+    """Data class to store chat messages with metadata."""
 
-        Args:
-            db_path: Path to the ChromaDB database
-            max_workers: Maximum number of worker threads for async operations
-        """
+    role: str
+    content: str
+    timestamp: str
+    message_id: str
+    conversation_id: str
+    metadata: Dict
+
+
+@dataclass
+class ConversationResponse:
+    """Data class to store unified model responses."""
+
+    responses: Dict[str, str]
+    conversation_id: str
+    timestamp: str
+    metadata: Dict
+
+
+class ChatMemoryProcessor:
+    """Handles chat history storage and retrieval using ChromaDB."""
+
+    def __init__(self, db_path: str):
+        """Initialize the chat memory processor."""
         self.db_path = Path(db_path)
-        self.max_workers = max_workers
-        self.vector_processor = VectorProcessor(
-            str(db_path)
-        )  # Assuming VectorProcessor takes a string path
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
-    def _create_prompt(self, question: str, context: str) -> str:
-        requirements = (
-            "Use all relevant information available. Be specific and cite relevant parts. "
-            "Say 'I don't know' if the context lacks necessary information. "
-            "Be thorough and detailed"
-            "Before return the answer, confirm it makes sense."
-        )
-        return f"""Answer based on the provided context.
-        Context: {context}
-        Question: {question}
-        Requirements:{requirements}
-        """
+    async def store_message(self, message: str, metadata: dict) -> bool:
+        """Store a single chat message in the database."""
+        message_id = str(uuid.uuid4())
+        for model in emb_models:
+            try:
+                client = chromadb.PersistentClient(
+                    str(self.db_path),
+                    settings=Settings(
+                        anonymized_telemetry=False, allow_reset=True, is_persistent=True
+                    ),
+                )
+                collection = client.get_or_create_collection(name=model)
 
-    async def _get_responses(self, prompt: str) -> Dict[str, str]:
-        content = prompt
-        my_message = [{"role": "user", "content": content}]
-        responses = {}
-        client = AsyncClient()  # Instantiate client outside the context manager
+                embedding = await self._get_embedding(message, model)
+                collection.upsert(
+                    documents=[message],
+                    embeddings=[embedding],
+                    metadatas=[metadata],
+                    ids=[message_id],
+                )
+            except Exception as e:
+                logger.error(f"Error storing message for model {model}: {e}")
+        return True
 
-        tasks = [client.chat(model=model, messages=my_message) for model in models]
+    async def _get_embedding(self, text: str, model: str) -> List[float]:
+        """Get embedding for query without storing."""
+        embeddings = OllamaEmbeddings(model=model)
+        try:
+            return embeddings.embed_query(text)
+        except Exception as e:
+            logger.error(f"Error generating embedding for model {model}: {e}")
+            raise
+
+    def _sanitize_metadata(self, metadata: dict) -> dict:
+        """Sanitize metadata to ensure only valid types are used."""
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, (str, int, float, bool)):
+                sanitized[key] = value
+            elif isinstance(value, (list, dict)):
+                sanitized[key] = json.dumps(value)
+            elif value is None:
+                sanitized[key] = "none"
+            else:
+                sanitized[key] = str(value)
+        return sanitized
+
+    async def store_conversation_response(
+        self, responses: Dict[str, str], metadata: dict
+    ) -> bool:
+        """Store a conversation response in the database."""
+        response_id = f"response_{uuid.uuid4()}"
+        for model in emb_models:
+            try:
+                client = chromadb.PersistentClient(
+                    str(self.db_path),
+                    settings=Settings(
+                        anonymized_telemetry=False, allow_reset=True, is_persistent=True
+                    ),
+                )
+                responses = json.dumps(responses)
+                collection = client.get_or_create_collection(name=model)
+                embedding = await self._get_embedding(responses, model)
+                collection.upsert(
+                    documents=[responses],
+                    embeddings=[embedding],
+                    metadatas=[self._sanitize_metadata(metadata)],
+                    ids=[response_id],
+                )
+            except Exception as e:
+                logger.error(f"Error storing response for model {model}: {e}")
+        return True
+
+    async def get_conversation_history(self) -> Dict[str, List[Dict]]:
+        """Retrieve and sort conversation history."""
+        results = {}
+        for model in emb_models:
+            try:
+                client = chromadb.PersistentClient(
+                    str(self.db_path),
+                    settings=Settings(
+                        anonymized_telemetry=False, allow_reset=True, is_persistent=True
+                    ),
+                )
+                collection = client.get_or_create_collection(name=model)
+                results[model] = include = [
+                    "documents",
+                    "embeddings",
+                    "metadatas",
+                    "ids",
+                ]
+
+            except Exception as e:
+                logger.error(f"Error retrieving messages for model {model}: {e}")
+
+        return results
+
+    async def cleanup(self):
+        """Cleanup resources."""
+        try:
+            self.executor.shutdown(wait=False)  # Changed to non-blocking shutdown
+
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
+
+class EnhancedChatProcessor:
+    """Enhanced chat processor with memory and unified responses."""
+
+    def __init__(self, db_path: str):
+        self.db_path = Path(db_path)
+        self.memory = ChatMemoryProcessor(str(self.db_path))
+        self.chat_models = chat_models
+        self.ui = UserInterface()
+        self.formatter = ResponseFormatter()
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.ollama_client = AsyncClient()
+
+    async def process_chat(self) -> str:
+        """Process chat interactions with memory and unified responses."""
+        conversation_id = str(uuid.uuid4())
+
+        while True:
+            user_input = self.ui.get_user_input()
+            if not user_input.strip():
+                continue
+
+            context = await self._get_context(user_input) or "Answer this"
+            prompt = await self._create_prompt(user_input, context)
+            history = await self.memory.get_conversation_history()
+            history_str = json.dumps(history) if history else "No history"
+
+            metadata = {
+                "type": "question",
+                "history": history_str,
+                "user_input": user_input,
+                "timestamp": datetime.now().isoformat(),
+                "conversation_id": f"{conversation_id}_{int(datetime.now().timestamp() * 1e6)}_'user'",
+                "message_id": str(uuid.uuid4()),
+                "prompt": prompt,
+                "context": context,
+            }
+
+            await self.memory.store_message(user_input, metadata)
+
+            responses = await self._get_model_responses(prompt)
+
+            response_metadata = {
+                "type": "model_responses",
+                "responses": responses,
+                "message_id": str(uuid.uuid4()),
+                "timestamp": datetime.now().isoformat(),
+                "role": "assistant",
+            }
+
+            await self.ui.display_responses(responses)
+            await self.memory.store_conversation_response(responses, response_metadata)
+
+            if input("\nContinue chatting? (y/n): ").lower() != "y":
+                break
+
+        return conversation_id
+
+    async def _get_model_responses(self, prompt: str) -> Dict[str, str]:
+        """Fetch responses from different models."""
+        tasks = [
+            self.ollama_client.chat(
+                model=model, messages=[{"role": "user", "content": prompt}]
+            )
+            for model in self.chat_models
+        ]
         results = await asyncio.gather(*tasks)
+        return {
+            model: result.message.content
+            for model, result in zip(self.chat_models, results)
+        }
 
-        for model, result in zip(models, results):
-            responses[model] = result.message.content
-
-        return responses
-
-    async def _get_context(self, question: str) -> Optional[Dict]:
+    async def _get_context(self, question: str) -> Optional[str]:
         """Retrieve relevant context from processed documents using embeddings."""
         query_processor = QueryProcessor(self.db_path)
         try:
-            results = await query_processor.parallel_query(question)
-
+            results = await query_processor.parallel_query(
+                query_text=question, n_results=4, min_similarity=0.7
+            )
             if not results:
                 return None
-
-            # Using the similarity attribute directly since these are QueryResult objects
-            result = max(results, key=lambda x: x.similarity)
-            return result
-
+            return max(results, key=lambda x: x.similarity).context
         except Exception as e:
             logger.error(f"Error retrieving context: {e}")
             return None
 
-    async def weighted_voting(
-        self, responses: Dict[str, str], weights: Dict[str, float]
-    ) -> str:
-        """Enhanced weighted voting system for mocadel responses with semantic similarity."""
-        if not responses:
-            return "No responses from models."
+    async def _create_prompt(self, question: str, context: str) -> str:
+        """Create a prompt with context for model querying."""
+        requirements = (
+            "Use all relevant information available. Be specific and cite relevant parts. "
+            "Say 'I don't know' if the context lacks necessary information. "
+            "Be thorough and detailed. Confirm your answer makes sense before responding."
+        )
+        return f"""Answer based on the provided context and question.
+        Question: {context} {question}
+        Requirements: {requirements}
+        """
 
-        # Preprocess responses
-        preprocessed_responses = {}
+    async def cleanup(self):
+        """Cleanup resources."""
+        await self.memory.cleanup()
+        self.executor.shutdown(wait=False)
+
+
+class UserInterface:
+    """Handles user interaction and display."""
+
+    def __init__(self, width: int = 100):
+        self.console = Console(width=width)
+        self.formatter = ResponseFormatter(width)
+
+    async def display_responses(self, responses: Dict[str, str]):
+        """Display responses from different models."""
+        self.console.print(self.formatter.create_model_responses_table(responses))
+
+    def get_user_input(self) -> str:
+        """Get user input from console."""
+        return self.console.input("\n[bold green]>> [/bold green]").strip()
+
+    def startup_banner(self):
+        """Display application startup banner."""
+        self.console.print("[bold blue]Model Response Viewer[/bold blue]")
+
+
+class ResponseFormatter:
+    """Formats responses for display."""
+
+    def __init__(self, width: int = 80):
+        self.width = width
+
+    def format_text(self, text: str) -> str:
+        """Format text with proper wrapping and spacing."""
+        paragraphs = text.split("\n\n")
+        formatted_paragraphs = [
+            textwrap.fill(para.strip(), width=self.width - 5) for para in paragraphs
+        ]
+        return "\n\n".join(formatted_paragraphs)
+
+    def create_model_responses_table(self, responses: Dict[str, str]) -> Table:
+        """Create a table showing individual model responses."""
+        table = Table(show_header=True, header_style="bold magenta", width=self.width)
+        table.add_column("Model", style="cyan")
+        table.add_column("Response")
+
         for model, response in responses.items():
-            # Split into sentences and clean them
-            sentences = [s.strip() for s in response.split(".") if s.strip()]
-            # Remove very short sentences and duplicates
-            sentences = [s for s in sentences if len(s.split()) > 3]
-            preprocessed_responses[model] = list(dict.fromkeys(sentences))
+            formatted_response = self.format_text(response)
+            table.add_row(model, Markdown(formatted_response))
 
-        # Gather all unique sentences
-        all_sentences = set(
-            sentence
-            for sentences in preprocessed_responses.values()
-            for sentence in sentences
-        )
-
-        # Calculate weighted scores with additional factors
-        sentence_scores = {}
-        sentence_models = {}  # Track which models contributed to each sentence
-
-        for sentence in all_sentences:
-            # Initialize score and supporting models
-            base_score = 0
-            supporting_models = []
-
-            # Calculate base score from model weights
-            for model, sentences in preprocessed_responses.items():
-                if sentence in sentences:
-                    base_score += weights[model]
-                    supporting_models.append(model)
-
-            # Bonus for agreement across multiple models
-            agreement_bonus = (len(supporting_models) / len(models)) * 0.5
-
-            # Length penalty for extremely long or short sentences
-            words = len(sentence.split())
-            length_penalty = 1.0
-            if words < 5:  # Too short
-                length_penalty = 0.7
-            elif words > 50:  # Too long
-                length_penalty = 0.8
-
-            # Calculate final score
-            final_score = (base_score + agreement_bonus) * length_penalty
-
-            sentence_scores[sentence] = final_score
-            sentence_models[sentence] = supporting_models
-
-        # Select and order sentences
-        sorted_sentences = sorted(
-            sentence_scores.items(), key=lambda x: x[1], reverse=True
-        )
-
-        # Build final response with intelligent selection
-        final_sentences = []
-        current_length = 0
-        max_sentences = 20  # Adjustable parameter
-        max_words = 500  # Adjustable parameter
-
-        for sentence, score in sorted_sentences:
-            # Stop if we've reached our limits
-            if (
-                len(final_sentences) >= max_sentences
-                or current_length + len(sentence.split()) > max_words
-            ):
-                break
-
-            # Check if this sentence adds new information
-            if not final_sentences or not self._is_redundant(sentence, final_sentences):
-                final_sentences.append(sentence)
-                current_length += len(sentence.split())
-
-        # Combine sentences with proper punctuation
-        final_response = ". ".join(final_sentences)
-        if final_response and not final_response.endswith("."):
-            final_response += "."
-
-        return final_response
-
-    def _is_redundant(
-        self,
-        new_sentence: str,
-        existing_sentences: List[str],
-        similarity_threshold: float = 0.8,
-    ) -> bool:
-        """Check if a new sentence is too similar to existing ones."""
-        new_words = set(new_sentence.lower().split())
-
-        for existing in existing_sentences:
-            existing_words = set(existing.lower().split())
-
-            # Calculate Jaccard similarity
-            intersection = len(new_words.intersection(existing_words))
-            union = len(new_words.union(existing_words))
-
-            if union > 0 and intersection / union > similarity_threshold:
-                return True
-
-        return False
-
-    async def get_voted_response(self, question: str, context: Optional[str]) -> str:
-        prompt = self._create_prompt(question, context)
-        responses = await self._get_responses(prompt)
-        return await self.weighted_voting(responses, model_weights)
-
-    async def get_user_input(self):
-        # This method needs implementation. Here's a simple version:
-        user_input = input("Enter your question: ")
-        return user_input
-
-    async def chat_processor(self):
-        question = await self.get_user_input()
-        context = await self._get_context(question)
-        result = await self.get_voted_response(question, context)
-        return result
-
-
-if __name__ == "__main__":
-    chat_processor = ChatProcessor(db_path="path/to/your/db")
-    result = asyncio.run(chat_processor.chat_processor())
-    print(f"Response: {result}")
+        return table

@@ -17,6 +17,8 @@ from ollama import AsyncClient
 import pytesseract
 import multiprocessing
 from datetime import date
+import shutil
+import fitz
 
 # Initialize logging
 log_dir = "src/log"
@@ -45,7 +47,6 @@ class VisionPDFProcessor:
         self.images_dir = Path(images_dir)
         self.max_workers = multiprocessing.cpu_count()
         self.io_executor = ThreadPoolExecutor(max_workers=self.max_workers)
-        self.vision_model = "minicpm-v"
 
         # Ensure directories exist
         self._setup_directories()
@@ -68,7 +69,10 @@ class VisionPDFProcessor:
                 "file_path": str(pdf_path),
                 "file_hash": file_hash,
                 "processed_date": datetime.now().isoformat(),
-                "content": {"pages": text, "total_pages": num_pages},
+                "total_pages": num_pages,
+                "processed": "True",
+                "name": str(os.path.basename(pdf_path)),
+                "content": text,
             }
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -92,10 +96,59 @@ class VisionPDFProcessor:
             return (pdf_path, False, 3)
 
         num_images = len(list(images_path.glob("*.*")))
-        text = await self._vision_process_page(images_path)
+        ocr_text = await self._vision_process_page(images_path)
+        pdf_text = await self.extract_text_from_pdf(pdf_path)
+
+        ocr_text = " ".join(ocr_text)
+        ocr_text = await self.filter_special_chars(ocr_text)
+        text = {"ocr": ocr_text}
+        text["pdf_text"] = pdf_text
 
         self.append_to_json_file(output_path, file_hash, pdf_path, text, num_images)
+
+        # Remove all images from the processed_images directory after processing
+        self._cleanup_images(file_hash)
+
         return (pdf_path, True, 1)
+
+    async def filter_special_chars(self, text):
+        # Define what you consider as special characters. Here, we're removing all non-alphanumeric except spaces.
+        # Step 1: Replace tabs and newlines with a single space
+        cleaned_text = re.sub(r"[\t\n\r]", " ", text)
+
+        # Step 2: Replace multiple spaces with a single space
+        cleaned_text = re.sub(r"\s+", " ", cleaned_text)
+        return cleaned_text
+
+    async def extract_text_from_pdf(self, pdf_path):
+        text = ""
+        try:
+            with fitz.open(pdf_path) as pdf_doc:
+                for page in pdf_doc:
+                    text += page.get_text()
+
+            if text:
+
+                return await self.filter_special_chars(text)
+            else:
+                return " "
+
+        except Exception as e:
+            logger.error(f" Extracting pdf failed {e}")
+            return " "
+
+    def _cleanup_images(self, pdf_hash: str):
+        image_dir = self.images_dir / pdf_hash
+        if image_dir.exists():
+            try:
+                shutil.rmtree(image_dir)
+                logger.info(f"Removed processed images for hash {pdf_hash}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to remove processed images for hash {pdf_hash}: {e}"
+                )
+        else:
+            logger.warning(f"No images directory found for hash {pdf_hash}")
 
     async def _extract_images(self, pdf_path: Path, pdf_hash: str):
         image_dir = self.images_dir / pdf_hash
@@ -108,10 +161,9 @@ class VisionPDFProcessor:
         images = await asyncio.to_thread(
             convert_from_path,
             pdf_path,
-            dpi=300,
-            fmt="jpeg",
+            dpi=100,
+            fmt="png",
             thread_count=self.max_workers,
-            transparent=True,
             use_pdftocairo=True,
         )
 
@@ -128,25 +180,7 @@ class VisionPDFProcessor:
     async def _vision_process_page(self, images_path):
         async def process_image(image_path, i):
             with Image.open(image_path) as image:
-                text = pytesseract.image_to_string(image)
-                page_data = {"ocr_text": text}
-
-                with open(image_path, "rb") as image_file:
-                    encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
-                content = (
-                    "Describe in detail charts, tables, figures, graphical data or code."
-                    ""
-                )
-                my_message = [
-                    {"role": "user", "content": content, "images": [encoded_image]}
-                ]
-
-                response = await AsyncClient().chat(
-                    model="minicpm-v", messages=my_message
-                )
-                page_data["visual_analysis"] = response["message"]["content"]
-
-            return {f"page_{i}": page_data}
+                return pytesseract.image_to_string(image)
 
         tasks = [
             process_image(img_path, i)

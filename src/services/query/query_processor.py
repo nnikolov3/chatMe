@@ -86,17 +86,7 @@ class QueryProcessor:
             )
 
     async def _get_collection(self, model: str) -> Optional[Collection]:
-        """Safely get a collection for the specified model.
-
-        Args:
-            model: Name of the model/collection to retrieve
-
-        Returns:
-            Collection object if found and not empty, None if collection not found or is empty.
-
-        Note:
-            Logs warnings for collections not found or empty, and errors for any exceptions encountered.
-        """
+        """Safely get a collection for the specified model."""
         try:
             collection_names = self.client.list_collections()
             if model not in collection_names:
@@ -131,7 +121,7 @@ class QueryProcessor:
         query_text: str,
         model: str,
         n_results: int = 4,
-        min_similarity: float = 0.39,
+        min_similarity: float = 0.4,
     ) -> List[QueryResult]:
         """Query only - no storage."""
         if not query_text.strip():
@@ -179,7 +169,7 @@ class QueryProcessor:
             return []
 
     async def parallel_query(
-        self, query_text: str, n_results: int = 4, min_similarity: float = 0.39
+        self, query_text: str, n_results: int = 4, min_similarity: float = 0.4
     ) -> List[QueryResult]:
         """Execute queries across all available models in parallel and combine results.
 
@@ -250,6 +240,7 @@ class QueryProcessor:
         try:
             # Clear embedding cache
             self._embedding_cache.clear()
+            self.chroma_client.clear_system_cache()
 
             # Shutdown thread pool
             self.executor.shutdown(wait=True)
@@ -319,9 +310,9 @@ class QueryInterface:
                 for i, result in enumerate(results[:10], 1):
                     console.print(
                         f"\n[cyan]{i}. Model: {result.model}[/cyan]"
-                        f"\nSimilarity: {result.similarity:.39%}"
+                        f"\nSimilarity: {result.similarity:.4%}"
                         f"\nDocument: {result.document_id}"
-                        f"\nContent: {result.content[:5000]}"
+                        f"\nContent: {result.content[:7000]}"
                     )
 
             except asyncio.CancelledError:

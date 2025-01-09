@@ -1,0 +1,21 @@
+# Ignore the build environment directory
+build_env/
+
+# Ignore data files
+src/data/
+
+# Ignore files to process
+src/files_to_process/
+
+# Ignore log files
+src/log/
+
+.vscode
+
+# Ignore Python cache directories
+__pycache__/
+
+# Ignore compiled Python files
+*.pyc
+*.pyo
+*.pyd

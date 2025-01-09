@@ -1,19 +1,17 @@
 import asyncio
 import argparse
 import logging
-from pathlib import Path
 from rich.console import Console
 from rich.logging import RichHandler
 import os
 import signal
-from typing import Optional
 from contextlib import asynccontextmanager
 import subprocess
 
 from src.helpers.processing_helper import get_helper
 from src.services.query.query_processor import get_query_interface
 from src.services.chat.chat_processor import (
-    ChatProcessor,
+    EnhancedChatProcessor,
 )  # Changed from chat_processor to ChatProcessor
 
 # Initialize rich console for better output formatting
@@ -108,15 +106,12 @@ class ApplicationManager:
             return False
 
     async def start_chat_interface(self) -> bool:
-        """Start the interactive chat interface with error handling."""
-        console.print("[cyan]Starting chat interface...[/cyan]")
+        """Start the enhanced interactive chat interface."""
+        console.print("[cyan]Starting enhanced chat interface...[/cyan]")
         try:
-            chat = ChatProcessor(self.helper.db_path)
-            while True:  # Keep chat running until user decides to exit
-                response = await chat.chat_processor()
-                console.print(f"[green]{response}[/green]")
-                if input("Do you want to ask another question? (y/n): ").lower() != "y":
-                    break
+            chat = EnhancedChatProcessor("./src/data/vector_db")
+            conversation_id = await chat.process_chat()
+            await chat.cleanup()
             return True
         except Exception as e:
             logger.exception("Error in chat interface")
@@ -160,13 +155,13 @@ async def main() -> int:
     """
     """
     TODO: 
-     [] Once pdf processing is done, remove images
      [] Fix the Ctrl-C and proper mechanism
      [] Add user interface
      [] Add logic, if the user has given a path to an image to use the correct model
      [] Create a unified interface - one function that takes the name of the interface than having multiple functions
      [] A cleanup functionality, resetting the entire project
-     [x] Add graph, chart recognition
+     [] Add features to process text and markdown
+
     
     """
     # Set up Ollama API base URL

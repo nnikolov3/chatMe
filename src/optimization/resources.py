@@ -26,8 +26,8 @@ class ResourceThresholds:
 
     cpu_high: float = 0.85  # Warns at 85% CPU usage
     cpu_critical: float = 0.95  # Critical at 95% CPU usage
-    memory_high: float = 0.80  # Warns at 80% memory usage
-    memory_critical: float = 0.90  # Critical at 90% memory usage
+    memory_high: float = 0.90  # Warns at 80% memory usage
+    memory_critical: float = 0.95  # Critical at 90% memory usage
     gpu_memory_high: float = 0.85  # Warns at 85% GPU memory usage
     gpu_memory_critical: float = 0.95  # Critical at 95% GPU memory usage
     gpu_temp_high: float = 80.0  # Warns at 80°C
@@ -62,7 +62,7 @@ class ResourceMetrics:
 
 class ResourceManager:
     def __init__(
-        self, monitoring_interval: float = 0.5, metrics_history_hours: int = 1
+        self, monitoring_interval: float = 1, metrics_history_hours: int = 1
     ):
         """Initialize the resource manager with monitoring settings."""
         self._lock = Lock()
@@ -94,10 +94,6 @@ class ResourceManager:
             f"Resource Manager initialized with {self.cpu_count} physical CPUs, {self.total_memory / (1024**3):.1f}GB RAM, {self.gpu_count} GPUs"
         )
 
-    @jit(nopython=True)
-    def _cpu_intensive_example(self, data):
-        """Example of a CPU-intensive task optimized with Numba."""
-        return np.sum(data)
 
     async def _collect_gpu_metrics(
         self,
@@ -292,12 +288,6 @@ class ResourceManager:
                 # Check resource thresholds
                 self._check_thresholds(metrics)
 
-                # Use multiprocessing for CPU tasks if needed
-                with ProcessPoolExecutor() as executor:
-                    executor.submit(
-                        self._cpu_intensive_example, np.random.rand(10000000)
-                    )  # Example task
-
                 # Wait for next collection cycle
                 await asyncio.sleep(adjusted_interval)
 
@@ -348,7 +338,7 @@ class ResourceManager:
                     handle = pynvml.nvmlDeviceGetHandleByIndex(0)
                     memory_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
                     available_memory = memory_info.free
-                    base_batch_size = int((available_memory * 0.7) / sample_size_bytes)
+                    base_batch_size = int((available_memory * 0.9) / sample_size_bytes)
                 except Exception as e:
                     logger.error(f"Error getting GPU memory info: {e}")
                     available_memory = recent_metrics.memory_available * (1024**3)
