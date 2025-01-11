@@ -25,7 +25,7 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
 
 #### `src/services/document/`:
 - **pdf_processor.py:**
-  - `VisionPDFProcessor`: Converts PDF documents into text using OCR for image-based content and direct text parsing for text-based PDFs. This is the initial step for RAG, preparing documents for embedding.
+  - `VisionPDFProcessor`: Converts PDF documents into text using OCR for image-based content and direct text parsing for text-based PDFs. The initial step of OCR involves converting PDFs to images. After processing, these images are removed to save space. This is the initial step for RAG, preparing documents for embedding.
 
 - **vector_processor.py:**
   - `VectorProcessor`: Converts processed text into vector embeddings, stored in ChromaDB, facilitating RAG by enabling efficient content retrieval based on similarity.
@@ -46,9 +46,14 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
 
   - **get_helper:** Factory function to instantiate `ProcessingHelper` with initialized resources.
 
+### Document Input and Processing
+
+- **Current Support:** The system currently only consumes PDF files.
+- **PDF Input:** PDFs should be placed in the `files_to_process` directory for processing. After processing, the images created during the OCR step are deleted to clean up.
+
 ### How It Works
 
-- **PDF Processing:** Combines OCR and direct text extraction to get comprehensive document content for RAG.
+- **PDF Processing:** Combines OCR (first converting PDFs to images, then processing) with direct text extraction to get comprehensive document content for RAG.
 - **Vector Embedding:** Text is encoded into vectors to be searchable and retrievable, key for RAG.
 - **Querying and Chatting:** Uses RAG to provide context-aware responses based on document content.
 
