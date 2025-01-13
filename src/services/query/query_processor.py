@@ -45,7 +45,7 @@ class QueryResult:
 class QueryProcessor:
     """Enhanced query processor with improved error handling and caching."""
 
-    def __init__(self, db_path: str, max_workers: int = multiprocessing.cpu_count()):
+    def __init__(self, db_path: str, emb_models: list, max_workers: int = multiprocessing.cpu_count()):
         """Initialize the query processor with configurable worker pool.
 
         Args:
@@ -54,6 +54,7 @@ class QueryProcessor:
         """
         self.db_path = Path(db_path)
         self._validate_db_path()
+        self.emb_models = emb_models
 
         # Initialize thread pool with configurable size
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -79,7 +80,7 @@ class QueryProcessor:
         """Validate the database path exists and is accessible."""
         if not self.db_path.exists():
             self.db_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created database directory at {self.db_path}")
+           
         elif not self.db_path.is_dir():
             raise ValueError(
                 f"Database path {self.db_path} exists but is not a directory"
@@ -121,7 +122,7 @@ class QueryProcessor:
         query_text: str,
         model: str,
         n_results: int = 4,
-        min_similarity: float = 0.4,
+        min_similarity: float = 0.45,
     ) -> List[QueryResult]:
         """Query only - no storage."""
         if not query_text.strip():
@@ -169,7 +170,7 @@ class QueryProcessor:
             return []
 
     async def parallel_query(
-        self, query_text: str, n_results: int = 4, min_similarity: float = 0.4
+        self, query_text: str, n_results: int = 4, min_similarity: float = 0.45
     ) -> List[QueryResult]:
         """Execute queries across all available models in parallel and combine results.
 
@@ -181,7 +182,7 @@ class QueryProcessor:
         Returns:
             List of QueryResult objects sorted by similarity score, from highest to lowest.
         """
-        models = self.get_available_models()
+        models = self.emb_models
         if not models:
             logger.warning("No models available for querying")
             return []
@@ -195,6 +196,7 @@ class QueryProcessor:
             )
             for model in models
         ]
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         combined_results = []
@@ -253,7 +255,7 @@ class QueryProcessor:
 class QueryInterface:
     """Interface for interacting with the query processor."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str , emb_models: list):
         """Initialize the query interface.
 
         Args:
@@ -261,6 +263,7 @@ class QueryInterface:
         """
         self.processor = QueryProcessor(db_path)
         self._shutdown_event = asyncio.Event()
+        self.emb_models = emb_models
 
     async def setup(self):
         """Initialize the interface and set up signal handlers."""
@@ -310,7 +313,7 @@ class QueryInterface:
                 for i, result in enumerate(results[:10], 1):
                     console.print(
                         f"\n[cyan]{i}. Model: {result.model}[/cyan]"
-                        f"\nSimilarity: {result.similarity:.4%}"
+                        f"\nSimilarity: {result.similarity:.45%}"
                         f"\nDocument: {result.document_id}"
                         f"\nContent: {result.content[:7000]}"
                     )
@@ -326,7 +329,7 @@ class QueryInterface:
         await self.processor.cleanup()
 
 
-async def get_query_interface(db_path: str) -> QueryInterface:
+async def get_query_interface(db_path: str, emb_models: list) -> QueryInterface:
     """Factory function to create and initialize a QueryInterface instance.
 
     Args:
@@ -335,6 +338,6 @@ async def get_query_interface(db_path: str) -> QueryInterface:
     Returns:
         Initialized QueryInterface instance
     """
-    interface = QueryInterface(db_path)
+    interface = QueryInterface(db_path,emb_models)
     await interface.setup()
     return interface

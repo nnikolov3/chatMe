@@ -98,8 +98,6 @@ class LogCleaner:
 
             # Remove the temporary directory
             shutil.rmtree(archive_path)
-
-            logger.info(f"Successfully archived logs to {archive_path}.zip")
             return True
 
         except Exception as e:
@@ -129,7 +127,6 @@ class LogCleaner:
         logs_to_delete = old_logs[keep_last:]
 
         if not logs_to_delete:
-            logger.info("No logs to clean up")
             return 0, 0
 
         # Archive logs if requested
@@ -147,7 +144,7 @@ class LogCleaner:
             except Exception as e:
                 logger.error(f"Failed to delete {log_file}: {e}")
 
-        logger.info(f"Cleaned up {deleted_count} log files")
+        
         if archived_count:
             logger.info(f"Archived {archived_count} log files")
 
