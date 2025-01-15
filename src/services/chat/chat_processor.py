@@ -2,7 +2,6 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-import random
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 import logging
@@ -32,6 +31,7 @@ emb_models = [
 ]
 chat_models = ["phi4", "dolphin3", "granite3.1-moe:3b", "falcon3"]
 
+
 max_workers = multiprocessing.cpu_count()
 
 
@@ -60,15 +60,16 @@ class ConversationResponse:
 class ChatMemoryProcessor:
     """Handles chat history storage and retrieval using ChromaDB."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, emb_models: list):
         """Initialize the chat memory processor."""
         self.db_path = Path(db_path)
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.emb_models = emb_models
 
     async def store_message(self, message: str, metadata: dict) -> bool:
         """Store a single chat message in the database."""
         message_id = str(uuid.uuid4())
-        for model in emb_models:
+        for model in self.emb_models:
             try:
                 client = chromadb.PersistentClient(
                     str(self.db_path),
@@ -117,7 +118,7 @@ class ChatMemoryProcessor:
     ) -> bool:
         """Store a conversation response in the database."""
         response_id = f"response_{uuid.uuid4()}"
-        for model in emb_models:
+        for model in self.emb_models:
             try:
                 client = chromadb.PersistentClient(
                     str(self.db_path),
@@ -141,7 +142,7 @@ class ChatMemoryProcessor:
     async def get_conversation_history(self) -> Dict[str, List[Dict]]:
         """Retrieve and sort conversation history."""
         results = {}
-        for model in emb_models:
+        for model in self.emb_models:
             try:
                 client = chromadb.PersistentClient(
                     str(self.db_path),
@@ -174,14 +175,15 @@ class ChatMemoryProcessor:
 class EnhancedChatProcessor:
     """Enhanced chat processor with memory and unified responses."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, emb_models):
         self.db_path = Path(db_path)
-        self.memory = ChatMemoryProcessor(str(self.db_path))
+        self.memory = ChatMemoryProcessor(str(self.db_path), emb_models)
         self.chat_models = chat_models
         self.ui = UserInterface()
         self.formatter = ResponseFormatter()
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.ollama_client = AsyncClient()
+        self.emb_models = emb_models
 
     async def process_chat(self) -> str:
         """Process chat interactions with memory and unified responses."""
@@ -192,7 +194,9 @@ class EnhancedChatProcessor:
             if not user_input.strip():
                 continue
 
-            context = await self._get_context(user_input) or "Answer this"
+            context = await self._get_context(user_input)
+            if not context:
+                context = "You are an expert"
             prompt = await self._create_prompt(user_input, context)
             history = await self.memory.get_conversation_history()
             history_str = json.dumps(history) if history else "No history"
@@ -205,8 +209,9 @@ class EnhancedChatProcessor:
                 "conversation_id": f"{conversation_id}_{int(datetime.now().timestamp() * 1e6)}_'user'",
                 "message_id": str(uuid.uuid4()),
                 "prompt": prompt,
-                "context": context,
+                
             }
+            
 
             await self.memory.store_message(user_input, metadata)
 
@@ -218,6 +223,10 @@ class EnhancedChatProcessor:
                 "message_id": str(uuid.uuid4()),
                 "timestamp": datetime.now().isoformat(),
                 "role": "assistant",
+                "context": [metadata,user_input,responses],
+                "user_input":user_input,
+                "prompt": prompt,
+                "metadata": metadata
             }
 
             await self.ui.display_responses(responses)
@@ -244,14 +253,16 @@ class EnhancedChatProcessor:
 
     async def _get_context(self, question: str) -> Optional[str]:
         """Retrieve relevant context from processed documents using embeddings."""
-        query_processor = QueryProcessor(self.db_path)
+        query_processor = QueryProcessor(self.db_path, self.emb_models)
         try:
             results = await query_processor.parallel_query(
                 query_text=question, n_results=4, min_similarity=0.45
             )
             if not results:
                 return None
-            return max(results, key=lambda x: x.similarity).context
+            
+            return results
+        
         except Exception as e:
             logger.error(f"Error retrieving context: {e}")
             return None
@@ -260,8 +271,7 @@ class EnhancedChatProcessor:
         """Create a prompt with context for model querying."""
         requirements = (
             "Use all relevant information available. Be specific and cite relevant parts. "
-            "Say 'I don't know' if the context lacks necessary information. "
-            "Be thorough and detailed. Confirm your answer makes sense before responding."
+            "Be thorough and detailed. Confirm your answer before responding."
         )
         return f"""Answer based on the provided context and question.
         Question: {context} {question}
@@ -277,7 +287,7 @@ class EnhancedChatProcessor:
 class UserInterface:
     """Handles user interaction and display."""
 
-    def __init__(self, width: int = 100):
+    def __init__(self, width: int = 120):
         self.console = Console(width=width)
         self.formatter = ResponseFormatter(width)
 
@@ -297,16 +307,13 @@ class UserInterface:
 class ResponseFormatter:
     """Formats responses for display."""
 
-    def __init__(self, width: int = 80):
+    def __init__(self, width: int = 120):
         self.width = width
 
     def format_text(self, text: str) -> str:
         """Format text with proper wrapping and spacing."""
-        paragraphs = text.split("\n\n")
-        formatted_paragraphs = [
-            textwrap.fill(para.strip(), width=self.width - 5) for para in paragraphs
-        ]
-        return "\n\n".join(formatted_paragraphs)
+        paragraphs = text.split("\n")
+        return "\n".join(paragraphs)
 
     def create_model_responses_table(self, responses: Dict[str, str]) -> Table:
         """Create a table showing individual model responses."""

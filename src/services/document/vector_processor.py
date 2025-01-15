@@ -15,10 +15,11 @@ import random
 logger = logging.getLogger(__name__)
 
 
+
 class VectorProcessor:
     """Enhanced vector database operations handler with improved document processing."""
 
-    def __init__(self, persist_dir: str):
+    def __init__(self, persist_dir: str, models: list):
         """Initialize the vector processor with advanced configuration.
 
         Args:
@@ -28,14 +29,7 @@ class VectorProcessor:
         self.persist_dir.mkdir(parents=True, exist_ok=True)
 
         # Curated list of models optimized for different aspects of text understanding
-        self.models = [
-            "bge-m3",  # Good for general text understanding
-            "paraphrase-multilingual",  # Strong at handling variations in expression
-            "mxbai-embed-large",  # Effective for technical content
-            "nomic-embed-text",  # Good at maintaining semantic relationships
-            "all-minilm",
-        ]
-
+        self.models = models
         # Initialize thread pool with configurable size
         self.executor = ThreadPoolExecutor(max_workers=multiprocessing.cpu_count())
 
@@ -138,7 +132,7 @@ class VectorProcessor:
 
             if existing["metadatas"] and existing["metadatas"][0]:
                 if existing["metadatas"][0][0].get("hash") == text_hash:
-                    logger.info(f"Skipping duplicate content with hash {text_hash}")
+                    #logger.info(f"Skipping duplicate content with hash {text_hash}")
                     return {"document": text, "model": model}
 
             text_hash = hashlib.md5(text.encode()).hexdigest()

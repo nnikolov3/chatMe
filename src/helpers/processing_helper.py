@@ -37,7 +37,7 @@ class ProcessingHelper:
         """Initialize and start resource monitoring."""
         try:
             await self.resource_manager.start_monitoring()
-            logger.info("Resource monitoring started successfully")
+           # logger.info("Resource monitoring started successfully")
         except Exception as e:
             logger.error(f"Failed to initialize resource monitoring: {e}")
             raise
@@ -46,7 +46,7 @@ class ProcessingHelper:
         """Cleanup and stop resource monitoring."""
         try:
             await self.resource_manager.cleanup()
-            logger.info("Resource cleanup completed")
+            #logger.info("Resource cleanup completed")
         except Exception as e:
             logger.error(f"Error during resource cleanup: {e}")
 
@@ -109,7 +109,7 @@ class ProcessingHelper:
 
     def convert_json_to_text(self, json_path: str) -> str:
         """Convert JSON file content to formatted text."""
-        logger.info(f"Converting to text {json_path}")
+        #logger.info(f"Converting to text {json_path}")
         try:
             with open(json_path, "r") as f:
                 return json.dumps(json.load(f), indent=2)
@@ -117,17 +117,19 @@ class ProcessingHelper:
             logger.error(f"Error converting JSON to text: {e}")
             return ""
 
-    async def process_json_to_vector_db(self) -> Dict[str, Union[str, int]]:
+    async def process_json_to_vector_db(self, emb_models) -> Dict[str, Union[str, int]]:
         """Process JSON files to vector database."""
-        logger.info("Vector Process")
+       
         json_paths = self.find_json_files()
-        logger.info(f"JSON Paths {json_paths}")
+        
 
         if not json_paths:
             logger.warning("No JSON files found to process")
             return {"status": "no_files", "processed": 0}
+        
+       
 
-        vector_processor = VectorProcessor(str(self.db_path))
+        vector_processor = VectorProcessor(str(self.db_path), emb_models)
         texts = self.process_json_paths(json_paths)
 
         if not texts:

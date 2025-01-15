@@ -79,3 +79,19 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
   python -m venv venv
   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
   pip install -r requirements.txt
+
+### Processing a pdf
+Note: Usually this takes some time, especially if you have large documents
+
+![process-pdf](https://github.com/user-attachments/assets/b49ebf0c-36cc-4a70-8f37-8c0571984a37)
+
+
+### Embedding the information in ChromaDB
+
+![process-embedding](https://github.com/user-attachments/assets/b0459835-21fb-45cc-88c5-bf0ca425058e)
+
+### Chat
+
+![chat](https://github.com/user-attachments/assets/5387dd52-ec72-41ec-baea-272c91de1321)
+
+You can do anything else as a normal LLM not only PDFs (RAG), although, keep in mind 1) the more documents in your database, the slower the chat, 2) it still can do mistakes, double check the answers.

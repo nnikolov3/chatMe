@@ -87,7 +87,7 @@ class VisionPDFProcessor:
             with open(output_path, "r") as f:
                 data = json.load(f)
                 if data.get("file_hash") == file_hash:
-                    logger.info(f"Already processed {pdf_path}")
+                    #logger.info(f"Already processed {pdf_path}")
                     return (pdf_path, True, 2)
 
         images_path = await self._extract_images(pdf_path, file_hash)
@@ -142,7 +142,7 @@ class VisionPDFProcessor:
         if image_dir.exists():
             try:
                 shutil.rmtree(image_dir)
-                logger.info(f"Removed processed images for hash {pdf_hash}")
+                #logger.info(f"Removed processed images for hash {pdf_hash}")
             except Exception as e:
                 logger.error(
                     f"Failed to remove processed images for hash {pdf_hash}: {e}"
@@ -153,7 +153,7 @@ class VisionPDFProcessor:
     async def _extract_images(self, pdf_path: Path, pdf_hash: str):
         image_dir = self.images_dir / pdf_hash
         if image_dir.exists():
-            logger.info(f"Images already processed: {image_dir}")
+            #logger.info(f"Images already processed: {image_dir}")
             return image_dir
 
         image_dir.mkdir(parents=True, exist_ok=True)

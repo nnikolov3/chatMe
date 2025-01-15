@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import asyncio
 import argparse
 import logging
@@ -24,6 +25,14 @@ logging.basicConfig(
     handlers=[RichHandler(rich_tracebacks=True)],
 )
 logger = logging.getLogger(__name__)
+
+emb_models = [
+            "bge-m3",  # Good for general text understanding
+            "paraphrase-multilingual",  # Strong at handling variations in expression
+            "mxbai-embed-large",  # Effective for technical content
+            "nomic-embed-text",  # Good at maintaining semantic relationships    
+        ]
+
 
 
 class ApplicationManager:
@@ -78,7 +87,7 @@ class ApplicationManager:
         """Process JSON to vector database with enhanced error handling."""
         console.print("[cyan]Processing JSON to vector database...[/cyan]")
         try:
-            result = await self.helper.process_json_to_vector_db()
+            result = await self.helper.process_json_to_vector_db(emb_models=emb_models)
             if result["status"] == "success":
                 console.print(
                     f"[green]Vector database processing completed:\n"
@@ -97,7 +106,7 @@ class ApplicationManager:
         """Start the interactive query interface with error handling."""
         console.print("[cyan]Starting query interface...[/cyan]")
         try:
-            query_interface = await get_query_interface(str(self.helper.db_path))
+            query_interface = await get_query_interface(str(self.helper.db_path). emb_models)
             await query_interface.interactive_query()
             return True
         except Exception as e:
@@ -109,7 +118,7 @@ class ApplicationManager:
         """Start the enhanced interactive chat interface."""
         console.print("[cyan]Starting enhanced chat interface...[/cyan]")
         try:
-            chat = EnhancedChatProcessor("./src/data/vector_db")
+            chat = EnhancedChatProcessor("./src/data/vector_db", emb_models=emb_models)
             conversation_id = await chat.process_chat()
             await chat.cleanup()
             return True
