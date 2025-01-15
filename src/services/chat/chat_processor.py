@@ -30,7 +30,7 @@ emb_models = [
     "paraphrase-multilingual",
     "bge-m3",
 ]
-chat_models = ["dolphin3", "granite3.1-moe:3b", "falcon3"]
+chat_models = ["phi4", "dolphin3", "granite3.1-moe:3b", "falcon3"]
 
 max_workers = multiprocessing.cpu_count()
 
@@ -247,7 +247,7 @@ class EnhancedChatProcessor:
         query_processor = QueryProcessor(self.db_path)
         try:
             results = await query_processor.parallel_query(
-                query_text=question, n_results=4, min_similarity=0.7
+                query_text=question, n_results=4, min_similarity=0.45
             )
             if not results:
                 return None

@@ -73,7 +73,7 @@ class QueryProcessor:
 
         # Cache for embeddings to reduce redundant computation
         self._embedding_cache = {}
-        self._cache_size_limit = 25000  # Adjust based on memory constraints
+        self._cache_size_limit = 40000  # Adjust based on memory constraints
 
     def _validate_db_path(self) -> None:
         """Validate the database path exists and is accessible."""
@@ -121,7 +121,7 @@ class QueryProcessor:
         query_text: str,
         model: str,
         n_results: int = 4,
-        min_similarity: float = 0.4,
+        min_similarity: float = 0.45,
     ) -> List[QueryResult]:
         """Query only - no storage."""
         if not query_text.strip():
@@ -169,7 +169,7 @@ class QueryProcessor:
             return []
 
     async def parallel_query(
-        self, query_text: str, n_results: int = 4, min_similarity: float = 0.4
+        self, query_text: str, n_results: int = 4, min_similarity: float = 0.45
     ) -> List[QueryResult]:
         """Execute queries across all available models in parallel and combine results.
 
@@ -310,9 +310,9 @@ class QueryInterface:
                 for i, result in enumerate(results[:10], 1):
                     console.print(
                         f"\n[cyan]{i}. Model: {result.model}[/cyan]"
-                        f"\nSimilarity: {result.similarity:.4%}"
+                        f"\nSimilarity: {result.similarity:.45%}"
                         f"\nDocument: {result.document_id}"
-                        f"\nContent: {result.content[:7000]}"
+                        f"\nContent: {result.content[:10000]}"
                     )
 
             except asyncio.CancelledError:
