@@ -23,7 +23,14 @@ from ..query.query_processor import QueryProcessor
 logger = logging.getLogger(__name__)
 console = Console()
 
-chat_models = ["olmo2:7b", "phi4"]
+emb_models = [
+    "mxbai-embed-large",
+    "nomic-embed-text",
+    "paraphrase-multilingual",
+    "bge-m3",
+]
+chat_models = ["phi4", "dolphin3", "granite3.1-moe:3b", "falcon3"]
+
 
 max_workers = multiprocessing.cpu_count()
 
