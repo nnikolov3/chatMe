@@ -1,4 +1,5 @@
 from pathlib import Path
+import secrets
 from typing import Dict, List, Optional
 import logging
 from chromadb.config import Settings
@@ -13,7 +14,6 @@ from datetime import datetime
 import random
 
 logger = logging.getLogger(__name__)
-
 
 
 class VectorProcessor:
@@ -120,6 +120,7 @@ class VectorProcessor:
                     "model": model,
                     "id": f"{text_hash}_{random.uniform(0.111111, 99.99999)}",
                     "hash": text_hash,
+                    "secret_id": str(secrets.randbelow(10**20)),
                 },
             )
 
@@ -132,11 +133,11 @@ class VectorProcessor:
 
             if existing["metadatas"] and existing["metadatas"][0]:
                 if existing["metadatas"][0][0].get("hash") == text_hash:
-                    #logger.info(f"Skipping duplicate content with hash {text_hash}")
+                    # logger.info(f"Skipping duplicate content with hash {text_hash}")
                     return {"document": text, "model": model}
 
             text_hash = hashlib.md5(text.encode()).hexdigest()
-
+            unique_id = f"doc_{text_hash}_{file_name}_{model}_{random.uniform(0.111111, 99.99999)}"
             collection = self.client.get_or_create_collection(
                 name=model,
                 metadata={
@@ -144,13 +145,12 @@ class VectorProcessor:
                     "timestamp": f"{datetime.now().isoformat(timespec="microseconds")}",
                     "date": f"{datetime.date}",
                     "model": model,
-                    "id": f"{text_hash}_{random.uniform(0.111111, 99.99999)}",
+                    "id": f"{text_hash}_{random.uniform(0.1111111, 999.999990)}",
                     "hash": text_hash,
+                    "unique_id": unique_id,
+                    "secret_id": str(secrets.randbelow(10**20)),
                 },
             )
-
-            # Use this hash in the ID or metadata to ensure content uniqueness
-            unique_id = f"doc_{text_hash}_{file_name}_{model}_{random.uniform(0.111111, 99.99999)}"
 
             collection.add(
                 documents=[text],
@@ -166,6 +166,8 @@ class VectorProcessor:
                         "original_text": text,
                         "processed": True,
                         "hash": text_hash,
+                        "unique_id": unique_id,
+                        "secret_id": str(secrets.randbelow(10**20)),
                     }
                 ],
             )

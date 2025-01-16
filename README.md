@@ -23,18 +23,21 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
 
 ### Directory Structure and Functionalities
 
-#### `src/services/document/`:
+#### `src/services/document/`
+
 - **pdf_processor.py:**
   - `VisionPDFProcessor`: Converts PDF documents into text using OCR for image-based content and direct text parsing for text-based PDFs. The initial step of OCR involves converting PDFs to images. After processing, these images are removed to save space. This is the initial step for RAG, preparing documents for embedding.
 
 - **vector_processor.py:**
   - `VectorProcessor`: Converts processed text into vector embeddings, stored in ChromaDB, facilitating RAG by enabling efficient content retrieval based on similarity.
 
-#### `src/optimization/`:
+#### `src/optimization/`
+
 - **resources.py:**
   - `ResourceManager`: Manages system resources, monitoring CPU, memory, or disk usage, which is crucial for optimizing performance during large-scale data processing or model execution.
 
-#### `src/helpers/`:
+#### `src/helpers/`
+
 - **processing_helper.py:**
   - **ProcessingHelper:** Central utility for orchestrating document processing:
     - **Directory Management:** Ensures necessary directories exist for operation.
@@ -75,16 +78,17 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
 ### Getting Started
 
 - **Python Virtual Environment:** Recommended for dependency management:
+
   ```bash
   python -m venv venv
   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
   pip install -r requirements.txt
 
 ### Processing a pdf
+
 Note: Usually this takes some time, especially if you have large documents
 
 ![process-pdf](https://github.com/user-attachments/assets/b49ebf0c-36cc-4a70-8f37-8c0571984a37)
-
 
 ### Embedding the information in ChromaDB
 

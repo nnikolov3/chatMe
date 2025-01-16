@@ -27,12 +27,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 emb_models = [
-            "bge-m3",  # Good for general text understanding
-            "paraphrase-multilingual",  # Strong at handling variations in expression
-            "mxbai-embed-large",  # Effective for technical content
-            "nomic-embed-text",  # Good at maintaining semantic relationships    
-        ]
-
+    "bge-m3",  # Good for general text understanding
+    "paraphrase-multilingual",  # Strong at handling variations in expression
+    "mxbai-embed-large",  # Effective for technical content
+    "nomic-embed-text",  # Good at maintaining semantic relationships
+    "all-minilm",
+]
 
 
 class ApplicationManager:
@@ -106,7 +106,9 @@ class ApplicationManager:
         """Start the interactive query interface with error handling."""
         console.print("[cyan]Starting query interface...[/cyan]")
         try:
-            query_interface = await get_query_interface(str(self.helper.db_path). emb_models)
+            query_interface = await get_query_interface(
+                str(self.helper.db_path).emb_models
+            )
             await query_interface.interactive_query()
             return True
         except Exception as e:
@@ -163,15 +165,19 @@ async def main() -> int:
         int: Exit code (0 for success, 1 for error)
     """
     """
-    TODO: 
+    TODO:
      [] Fix the Ctrl-C and proper mechanism
      [] Add user interface
      [] Add logic, if the user has given a path to an image to use the correct model
      [] Create a unified interface - one function that takes the name of the interface than having multiple functions
      [] A cleanup functionality, resetting the entire project
      [] Add features to process text and markdown
+     [] Centralize "similarity", now is in various places
+     [] Simplify imports
+     [] Implement the rest of the api
+     [] Add docstrings
 
-    
+
     """
     # Set up Ollama API base URL
     os.environ["OLLAMA_API_BASE_URL"] = "http://127.0.0.1:11434/api"

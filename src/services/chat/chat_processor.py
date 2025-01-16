@@ -1,35 +1,28 @@
-import asyncio
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-import logging
-import chromadb
 from chromadb.config import Settings
 from langchain_ollama import OllamaEmbeddings
 from rich.console import Console
 from rich.table import Table
 from rich.markdown import Markdown
-import textwrap
-import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
-import uuid
 from ollama import AsyncClient
-
+import secrets
+import logging
+import chromadb
+import asyncio
+import json
+import multiprocessing
+import uuid
 
 from ..query.query_processor import QueryProcessor
 
 logger = logging.getLogger(__name__)
 console = Console()
 
-emb_models = [
-    "mxbai-embed-large",
-    "nomic-embed-text",
-    "paraphrase-multilingual",
-    "bge-m3",
-]
-chat_models = ["phi4", "dolphin3", "granite3.1-moe:3b", "falcon3"]
+chat_models = ["phi4", "falcon3", "olmo2:7b"]
 
 
 max_workers = multiprocessing.cpu_count()
@@ -139,34 +132,11 @@ class ChatMemoryProcessor:
                 logger.error(f"Error storing response for model {model}: {e}")
         return True
 
-    async def get_conversation_history(self) -> Dict[str, List[Dict]]:
-        """Retrieve and sort conversation history."""
-        results = {}
-        for model in self.emb_models:
-            try:
-                client = chromadb.PersistentClient(
-                    str(self.db_path),
-                    settings=Settings(
-                        anonymized_telemetry=False, allow_reset=True, is_persistent=True
-                    ),
-                )
-                collection = client.get_or_create_collection(name=model)
-                results[model] = include = [
-                    "documents",
-                    "embeddings",
-                    "metadatas",
-                    "ids",
-                ]
-
-            except Exception as e:
-                logger.error(f"Error retrieving messages for model {model}: {e}")
-
-        return results
-
     async def cleanup(self):
         """Cleanup resources."""
         try:
-            self.executor.shutdown(wait=False)  # Changed to non-blocking shutdown
+            self.executor.shutdown()  # Changed to non-blocking shutdown
+            exit(0)
 
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
@@ -196,22 +166,17 @@ class EnhancedChatProcessor:
 
             context = await self._get_context(user_input)
             if not context:
-                context = "You are an expert"
+                context = ""
+
             prompt = await self._create_prompt(user_input, context)
-            history = await self.memory.get_conversation_history()
-            history_str = json.dumps(history) if history else "No history"
 
             metadata = {
                 "type": "question",
-                "history": history_str,
-                "user_input": user_input,
                 "timestamp": datetime.now().isoformat(),
                 "conversation_id": f"{conversation_id}_{int(datetime.now().timestamp() * 1e6)}_'user'",
                 "message_id": str(uuid.uuid4()),
-                "prompt": prompt,
-                
+                "secret_id": str(secrets.randbelow(10**20)),
             }
-            
 
             await self.memory.store_message(user_input, metadata)
 
@@ -219,14 +184,11 @@ class EnhancedChatProcessor:
 
             response_metadata = {
                 "type": "model_responses",
-                "responses": responses,
                 "message_id": str(uuid.uuid4()),
                 "timestamp": datetime.now().isoformat(),
                 "role": "assistant",
-                "context": [metadata,user_input,responses],
-                "user_input":user_input,
-                "prompt": prompt,
-                "metadata": metadata
+                "user_input": user_input,
+                "secret_id": str(secrets.randbelow(10**20)),
             }
 
             await self.ui.display_responses(responses)
@@ -256,38 +218,37 @@ class EnhancedChatProcessor:
         query_processor = QueryProcessor(self.db_path, self.emb_models)
         try:
             results = await query_processor.parallel_query(
-                query_text=question, n_results=4, min_similarity=0.45
+                query_text=question, n_results=4, min_similarity=0.5
             )
             if not results:
                 return None
-            
+
             return results
-        
+
         except Exception as e:
             logger.error(f"Error retrieving context: {e}")
             return None
 
     async def _create_prompt(self, question: str, context: str) -> str:
         """Create a prompt with context for model querying."""
-        requirements = (
-            "Use all relevant information available. Be specific and cite relevant parts. "
-            "Be thorough and detailed. Confirm your answer before responding."
-        )
-        return f"""Answer based on the provided context and question.
-        Question: {context} {question}
+        requirements = "Use all relevant information available. Be specific , thorough and detailed, and cite relevant parts. Confirm your answer before responding."
+        return f"""Use context, requirements, and histroy if they exist, and use them to answer the question.
+        Context: {context}
+        Question: {question}
         Requirements: {requirements}
         """
 
     async def cleanup(self):
         """Cleanup resources."""
         await self.memory.cleanup()
-        self.executor.shutdown(wait=False)
+        self.executor.shutdown()
+        exit(0)
 
 
 class UserInterface:
     """Handles user interaction and display."""
 
-    def __init__(self, width: int = 120):
+    def __init__(self, width: int = 100):
         self.console = Console(width=width)
         self.formatter = ResponseFormatter(width)
 
@@ -307,7 +268,7 @@ class UserInterface:
 class ResponseFormatter:
     """Formats responses for display."""
 
-    def __init__(self, width: int = 120):
+    def __init__(self, width: int = 100):
         self.width = width
 
     def format_text(self, text: str) -> str:
@@ -322,7 +283,6 @@ class ResponseFormatter:
         table.add_column("Response")
 
         for model, response in responses.items():
-            formatted_response = self.format_text(response)
-            table.add_row(model, Markdown(formatted_response))
+            table.add_row(model, Markdown(self.format_text(response)))
 
         return table

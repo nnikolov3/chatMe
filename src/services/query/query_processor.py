@@ -13,6 +13,7 @@ import signal
 from rich.console import Console
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
 import multiprocessing
+import secrets
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -38,6 +39,7 @@ class QueryResult:
             "similarity": self.similarity,
             "metadata": self.metadata,
             "timestamp": self.timestamp,
+            "secret_id": str(secrets.randbelow(10**20)),
         }
         return res
 
@@ -45,7 +47,12 @@ class QueryResult:
 class QueryProcessor:
     """Enhanced query processor with improved error handling and caching."""
 
-    def __init__(self, db_path: str, emb_models: list, max_workers: int = multiprocessing.cpu_count()):
+    def __init__(
+        self,
+        db_path: str,
+        emb_models: list,
+        max_workers: int = multiprocessing.cpu_count(),
+    ):
         """Initialize the query processor with configurable worker pool.
 
         Args:
@@ -74,13 +81,13 @@ class QueryProcessor:
 
         # Cache for embeddings to reduce redundant computation
         self._embedding_cache = {}
-        self._cache_size_limit = 40000  # Adjust based on memory constraints
+        self._cache_size_limit = 16000  # Adjust based on memory constraints
 
     def _validate_db_path(self) -> None:
         """Validate the database path exists and is accessible."""
         if not self.db_path.exists():
             self.db_path.mkdir(parents=True, exist_ok=True)
-           
+
         elif not self.db_path.is_dir():
             raise ValueError(
                 f"Database path {self.db_path} exists but is not a directory"
@@ -122,7 +129,7 @@ class QueryProcessor:
         query_text: str,
         model: str,
         n_results: int = 4,
-        min_similarity: float = 0.45,
+        min_similarity: float = 0.5,
     ) -> List[QueryResult]:
         """Query only - no storage."""
         if not query_text.strip():
@@ -170,7 +177,7 @@ class QueryProcessor:
             return []
 
     async def parallel_query(
-        self, query_text: str, n_results: int = 4, min_similarity: float = 0.45
+        self, query_text: str, n_results: int = 4, min_similarity: float = 0.5
     ) -> List[QueryResult]:
         """Execute queries across all available models in parallel and combine results.
 
@@ -255,7 +262,7 @@ class QueryProcessor:
 class QueryInterface:
     """Interface for interacting with the query processor."""
 
-    def __init__(self, db_path: str , emb_models: list):
+    def __init__(self, db_path: str, emb_models: list):
         """Initialize the query interface.
 
         Args:
@@ -313,9 +320,9 @@ class QueryInterface:
                 for i, result in enumerate(results[:10], 1):
                     console.print(
                         f"\n[cyan]{i}. Model: {result.model}[/cyan]"
-                        f"\nSimilarity: {result.similarity:.45%}"
+                        f"\nSimilarity: {result.similarity:.5%}"
                         f"\nDocument: {result.document_id}"
-                        f"\nContent: {result.content[:10000]}"
+                        f"\nContent: {result.content[:1000]}"
                     )
 
             except asyncio.CancelledError:
@@ -338,6 +345,6 @@ async def get_query_interface(db_path: str, emb_models: list) -> QueryInterface:
     Returns:
         Initialized QueryInterface instance
     """
-    interface = QueryInterface(db_path,emb_models)
+    interface = QueryInterface(db_path, emb_models)
     await interface.setup()
     return interface

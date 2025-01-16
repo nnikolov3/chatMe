@@ -61,9 +61,7 @@ class ResourceMetrics:
 
 
 class ResourceManager:
-    def __init__(
-        self, monitoring_interval: float = 1, metrics_history_hours: int = 1
-    ):
+    def __init__(self, monitoring_interval: float = 1, metrics_history_hours: int = 1):
         """Initialize the resource manager with monitoring settings."""
         self._lock = Lock()
         self._monitoring = False
@@ -93,7 +91,6 @@ class ResourceManager:
         logger.info(
             f"Resource Manager initialized with {self.cpu_count} physical CPUs, {self.total_memory / (1024**3):.1f}GB RAM, {self.gpu_count} GPUs"
         )
-
 
     async def _collect_gpu_metrics(
         self,
@@ -207,7 +204,7 @@ class ResourceManager:
                 ]
 
                 adjusted_interval = self._adjust_monitoring_interval(metrics)
-                #self._check_thresholds(metrics)  # Ensure this method call is here
+                # self._check_thresholds(metrics)  # Ensure this method call is here
                 await asyncio.sleep(adjusted_interval)
             except Exception as e:
                 logger.error(f"Error in resource monitoring: {e}")
@@ -286,7 +283,7 @@ class ResourceManager:
                 adjusted_interval = self._adjust_monitoring_interval(metrics)
 
                 # Check resource thresholds
-                #self._check_thresholds(metrics)
+                # self._check_thresholds(metrics)
 
                 # Wait for next collection cycle
                 await asyncio.sleep(adjusted_interval)
@@ -391,7 +388,7 @@ class ResourceManager:
             async with aiofiles.open(filepath, "w") as f:
                 await f.write(json.dumps(metrics_data, indent=2))
 
-            #logger.info(f"Resource metrics exported to {filepath}")
+            # logger.info(f"Resource metrics exported to {filepath}")
 
         except Exception as e:
             logger.error(f"Failed to export metrics: {e}")
@@ -404,19 +401,19 @@ class ResourceManager:
             if self.gpu_available:
                 try:
                     torch.cuda.empty_cache()
-                    #logger.debug("CUDA memory cache cleared")
+                    # logger.debug("CUDA memory cache cleared")
                 except Exception as e:
                     logger.error(f"Error clearing CUDA cache: {e}")
 
                 if self.nvml_initialized:
                     try:
                         pynvml.nvmlShutdown()
-                        #logger.info("NVIDIA Management Library shut down successfully")
+                        # logger.info("NVIDIA Management Library shut down successfully")
                     except Exception as e:
                         logger.error(f"Error shutting down NVML: {e}")
 
             gc.collect()
-            #logger.info("Resource manager cleanup completed")
+            # logger.info("Resource manager cleanup completed")
 
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
