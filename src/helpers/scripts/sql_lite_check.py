@@ -7,7 +7,9 @@ def inspect_chroma_db(db_path: str):
     cursor = conn.cursor()
 
     # Get document count and content sample
-    cursor.execute("SELECT COUNT(*), embedding_id, document FROM embeddings")
+    cursor.execute(
+        "SELECT COUNT(*), embedding_id, document FROM embeddings"
+    )
     result = cursor.fetchone()
     print(f"Total documents: {result[0]}")
 

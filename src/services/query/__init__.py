@@ -1,14 +1,24 @@
-from pathlib import Path
-import logging
-from typing import List, Dict, Optional, Union
-from chromadb.config import Settings
-import chromadb
-from langchain_ollama import OllamaEmbeddings
+"""
+Resource management module for system monitoring and optimization.
+
+This module provides classes for monitoring and managing system resources
+including CPU, memory, and GPU utilization.
+"""
+
 import asyncio
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Union
+
+# Third-party imports
+import chromadb
+from chromadb.config import Settings
+from langchain_ollama import OllamaEmbeddings
 from rich.console import Console
 
+# Initialize logger and console
 logger = logging.getLogger(__name__)
 console = Console()
 
@@ -43,7 +53,8 @@ class QueryProcessor:
         ]
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.client = chromadb.PersistentClient(
-            path=str(self.db_path), settings=Settings(anonymized_telemetry=False)
+            path=str(self.db_path),
+            settings=Settings(anonymized_telemetry=False),
         )
 
     async def query(
@@ -64,7 +75,9 @@ class QueryProcessor:
         Returns:
             List of QueryResult objects sorted by relevance
         """
-        models_to_query = [specific_model] if specific_model else self.models
+        models_to_query = (
+            [specific_model] if specific_model else self.models
+        )
         all_results = []
 
         for model in models_to_query:
@@ -80,7 +93,9 @@ class QueryProcessor:
                 try:
                     collection = self.client.get_collection(name=model)
                 except Exception as e:
-                    logger.warning(f"Collection not found for model {model}: {e}")
+                    logger.warning(
+                        f"Collection not found for model {model}: {e}"
+                    )
                     continue
 
                 # Query the collection
@@ -105,7 +120,9 @@ class QueryProcessor:
                         all_results.append(
                             QueryResult(
                                 model=model,
-                                document_id=metadata.get("json_path", f"doc_{idx}"),
+                                document_id=metadata.get(
+                                    "json_path", f"doc_{idx}"
+                                ),
                                 content=doc,
                                 distance=distance,
                                 metadata=metadata,
@@ -131,7 +148,8 @@ class QueryProcessor:
             try:
                 collection = self.client.get_collection(name=model)
                 results = collection.get(
-                    where={"json_path": doc_id}, include=["documents", "metadatas"]
+                    where={"json_path": doc_id},
+                    include=["documents", "metadatas"],
                 )
                 if results["documents"]:
                     return {
@@ -191,12 +209,17 @@ class QueryInterface:
 
                 # Get available models
                 available_models = self.processor.get_available_models()
-                self.console.print(f"\nAvailable models: {', '.join(available_models)}")
+                self.console.print(
+                    f"\nAvailable models: {', '.join(available_models)}"
+                )
                 self.console.print(
                     "[cyan]Specific model to use (press Enter for all):[/cyan]"
                 )
                 specific_model = input().strip()
-                if specific_model and specific_model not in available_models:
+                if (
+                    specific_model
+                    and specific_model not in available_models
+                ):
                     self.console.print(
                         "[red]Invalid model selected. Using all models.[/red]"
                     )
@@ -222,10 +245,14 @@ class QueryInterface:
                     self.console.print(f"Model: {result.model}")
                     self.console.print(f"Document: {result.document_id}")
                     self.console.print(f"Similarity: {similarity:.2f}%")
-                    self.console.print("Content preview:", result.content[:200] + "...")
+                    self.console.print(
+                        "Content preview:", result.content[:200] + "..."
+                    )
 
         except KeyboardInterrupt:
-            self.console.print("\n[yellow]Query session terminated.[/yellow]")
+            self.console.print(
+                "\n[yellow]Query session terminated.[/yellow]"
+            )
         finally:
             await self.processor.cleanup()
 

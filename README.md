@@ -26,6 +26,7 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
 #### `src/services/document/`
 
 - **pdf_processor.py:**
+
   - `VisionPDFProcessor`: Converts PDF documents into text using OCR for image-based content and direct text parsing for text-based PDFs. The initial step of OCR involves converting PDFs to images. After processing, these images are removed to save space. This is the initial step for RAG, preparing documents for embedding.
 
 - **vector_processor.py:**
@@ -39,7 +40,9 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
 #### `src/helpers/`
 
 - **processing_helper.py:**
+
   - **ProcessingHelper:** Central utility for orchestrating document processing:
+
     - **Directory Management:** Ensures necessary directories exist for operation.
     - **Resource Management:** Initializes and cleans up resource monitoring for performance tracking.
     - **PDF Processing:** `process_pdfs_to_json` converts PDFs to JSON, using both OCR and text parsing.
@@ -75,6 +78,18 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
 - **Rich:** Console output enhancement.
 - **PyTorch:** Underlying for model execution in RAG.
 
+TODO:
+[] Fix the Ctrl-C and proper mechanism
+[] Add user interface
+[] Add logic, if the user has given a path to an image to use the correct model
+[] Create a unified interface - one function that takes the name of the interface than having multiple functions
+[] A cleanup functionality, resetting the entire project
+[] Add features to process text and markdown
+[] Centralize "similarity", now is in various places
+[] Simplify imports
+[] Implement the rest of the api
+[] Add docstrings
+
 ### Getting Started
 
 - **Python Virtual Environment:** Recommended for dependency management:
@@ -83,6 +98,7 @@ This project is a Python wrapper around [Ollama](https://ollama.com/) and [Chrom
   python -m venv venv
   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
   pip install -r requirements.txt
+  ```
 
 ### Processing a pdf
 

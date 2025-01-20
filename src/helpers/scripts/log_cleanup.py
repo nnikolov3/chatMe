@@ -48,8 +48,12 @@ class LogCleaner:
             try:
                 return datetime.strptime(date_str, "%Y%m%d_%H%M%S")
             except ValueError:
-                logger.warning(f"Could not parse date from filename: {filename}")
-        return datetime.fromtimestamp(os.path.getctime(str(self.log_dir / filename)))
+                logger.warning(
+                    f"Could not parse date from filename: {filename}"
+                )
+        return datetime.fromtimestamp(
+            os.path.getctime(str(self.log_dir / filename))
+        )
 
     def list_logs(self, days_old: int = None) -> list:
         """List all log files, optionally filtered by age.
@@ -121,7 +125,9 @@ class LogCleaner:
         old_logs = self.list_logs(days_old)
 
         # Sort logs by date, newest first
-        old_logs.sort(key=lambda x: self.parse_log_date(x.name), reverse=True)
+        old_logs.sort(
+            key=lambda x: self.parse_log_date(x.name), reverse=True
+        )
 
         # Keep the specified number of most recent logs
         logs_to_delete = old_logs[keep_last:]
@@ -144,7 +150,6 @@ class LogCleaner:
             except Exception as e:
                 logger.error(f"Failed to delete {log_file}: {e}")
 
-        
         if archived_count:
             logger.info(f"Archived {archived_count} log files")
 
@@ -155,7 +160,9 @@ def main():
     """Main function to handle command line arguments and execute cleanup."""
     parser = argparse.ArgumentParser(description="Clean up old log files")
     parser.add_argument(
-        "--log-dir", default="./src/log", help="Directory containing log files"
+        "--log-dir",
+        default="./src/log",
+        help="Directory containing log files",
     )
     parser.add_argument(
         "--archive-dir",
@@ -163,20 +170,30 @@ def main():
         help="Directory for archiving logs",
     )
     parser.add_argument(
-        "--days", type=int, default=7, help="Delete logs older than this many days"
+        "--days",
+        type=int,
+        default=7,
+        help="Delete logs older than this many days",
     )
     parser.add_argument(
-        "--keep-last", type=int, default=5, help="Number of recent logs to keep"
+        "--keep-last",
+        type=int,
+        default=5,
+        help="Number of recent logs to keep",
     )
     parser.add_argument(
-        "--no-archive", action="store_true", help="Skip archiving logs before deletion"
+        "--no-archive",
+        action="store_true",
+        help="Skip archiving logs before deletion",
     )
 
     args = parser.parse_args()
 
     cleaner = LogCleaner(args.log_dir, args.archive_dir)
     deleted, archived = cleaner.cleanup_logs(
-        days_old=args.days, keep_last=args.keep_last, archive=not args.no_archive
+        days_old=args.days,
+        keep_last=args.keep_last,
+        archive=not args.no_archive,
     )
 
     if deleted == 0:

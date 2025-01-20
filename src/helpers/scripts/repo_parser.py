@@ -51,7 +51,9 @@ def generate_repo_report(directory, output_file):
                 dirs.remove(".git")  # Exclude .git directory
 
             indent_level = root.replace(directory, "").count(os.sep)
-            output.write(f"{'    ' * indent_level}{os.path.basename(root)}/\n")
+            output.write(
+                f"{'    ' * indent_level}{os.path.basename(root)}/\n"
+            )
 
             for file in files:
                 if file.endswith(".py"):
@@ -70,7 +72,9 @@ def generate_repo_report(directory, output_file):
                     file_path = os.path.join(root, file)
 
                     # Gather metadata
-                    size, modified_time, permissions = get_file_metadata(file_path)
+                    size, modified_time, permissions = get_file_metadata(
+                        file_path
+                    )
                     total, blank, comments, error = count_lines(file_path)
 
                     # Write detailed file information
@@ -86,7 +90,9 @@ def generate_repo_report(directory, output_file):
 
                     # Append the content of the file
                     try:
-                        with open(file_path, "r", encoding="utf-8") as file_content:
+                        with open(
+                            file_path, "r", encoding="utf-8"
+                        ) as file_content:
                             output.write(file_content.read())
                         output.write(f"\n{'=' * 80}\n")
                     except Exception as e:
@@ -103,9 +109,14 @@ if __name__ == "__main__":
         description="Generate a comprehensive repo report with metadata."
     )
     parser.add_argument(
-        "-d", "--directory", required=True, help="The root directory to process."
+        "-d",
+        "--directory",
+        required=True,
+        help="The root directory to process.",
     )
-    parser.add_argument("-o", "--output", required=True, help="The output text file.")
+    parser.add_argument(
+        "-o", "--output", required=True, help="The output text file."
+    )
     args = parser.parse_args()
 
     if not os.path.isdir(args.directory):

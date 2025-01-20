@@ -48,7 +48,9 @@ def get_package_versions(packages: set) -> dict:
 def generate_requirements():
     """Generate requirements.txt with proper versions."""
     # Get project root directory
-    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    project_dir = os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
 
     # Find all Python files
     python_files = find_project_files(project_dir)
@@ -61,7 +63,9 @@ def generate_requirements():
 
     # Remove standard library modules
     stdlib_modules = set(sys.stdlib_modules)
-    third_party_imports = {pkg for pkg in all_imports if pkg not in stdlib_modules}
+    third_party_imports = {
+        pkg for pkg in all_imports if pkg not in stdlib_modules
+    }
 
     # Get versions of installed packages
     package_versions = get_package_versions(third_party_imports)

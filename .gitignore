@@ -1,5 +1,5 @@
 # Ignore the build environment directory
-build_env/
+venv/
 
 .vscode
 

@@ -18,7 +18,7 @@ def format_with_black(start_dir):
                         [
                             "black",
                             "--line-length",
-                            "88",  # Default line length for readability
+                            "76",  # Default line length for readability
                             "--color",
                             "-W",
                             "5",

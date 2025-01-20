@@ -3,7 +3,9 @@ import subprocess
 
 # Get a list of outdated packages
 outdated_packages = subprocess.run(
-    ["pip", "list", "--outdated", "--format=freeze"], capture_output=True, text=True
+    ["pip", "list", "--outdated", "--format=freeze"],
+    capture_output=True,
+    text=True,
 ).stdout.splitlines()
 
 # Extract package names

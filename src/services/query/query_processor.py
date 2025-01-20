@@ -1,19 +1,28 @@
-from pathlib import Path
-import logging
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
-import chromadb
-from chromadb.config import Settings
-from chromadb.api.models.Collection import Collection
-from langchain_ollama import OllamaEmbeddings
+"""
+Main module for query processing
+"""
+
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-import time
-import signal
-from rich.console import Console
-from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
+import logging
 import multiprocessing
-import secrets
+import signal
+import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import chromadb
+from chromadb.api.models.Collection import Collection
+from chromadb.config import Settings
+from langchain_ollama import OllamaEmbeddings
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+)
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -39,7 +48,6 @@ class QueryResult:
             "similarity": self.similarity,
             "metadata": self.metadata,
             "timestamp": self.timestamp,
-            "secret_id": str(secrets.randbelow(10**20)),
         }
         return res
 
@@ -71,17 +79,15 @@ class QueryProcessor:
             self.client = chromadb.PersistentClient(
                 path=str(db_path),
                 settings=Settings(
-                    anonymized_telemetry=False, allow_reset=True, is_persistent=True
+                    anonymized_telemetry=False,
+                    allow_reset=True,
+                    is_persistent=True,
                 ),
             )
 
         except Exception as e:
-            logger.error(f"Failed to initialize ChromaDB client: {e}")
+            logger.error("Failed to initialize ChromaDB client: %s", e)
             raise
-
-        # Cache for embeddings to reduce redundant computation
-        self._embedding_cache = {}
-        self._cache_size_limit = 16000  # Adjust based on memory constraints
 
     def _validate_db_path(self) -> None:
         """Validate the database path exists and is accessible."""
@@ -98,18 +104,18 @@ class QueryProcessor:
         try:
             collection_names = self.client.list_collections()
             if model not in collection_names:
-                logger.warning(f"Collection for model '{model}' not found")
+                logger.warning("Collection for model %s not found", model)
                 return None
 
             collection = self.client.get_collection(name=model)
             if collection.count() == 0:
-                logger.warning(f"Collection '{model}' is empty")
+                logger.warning("Collection '%s' is empty", model)
                 return None
 
             return collection
 
         except Exception as e:
-            logger.error(f"Error accessing collection '{model}': {e}")
+            logger.error("Error accessing collection %s -> %s", model, e)
             return None
 
     async def _get_embedding(self, text: str, model: str) -> List[float]:
@@ -121,15 +127,15 @@ class QueryProcessor:
             )
             return embedding[0]  # Return just the embedding vector
         except Exception as e:
-            logger.error(f"Error generating query embedding: {e}")
+            logger.error("Error generating query embedding: %s", e)
             raise
 
     async def query(
         self,
         query_text: str,
         model: str,
-        n_results: int = 4,
-        min_similarity: float = 0.5,
+        n_results: int = 1,
+        min_similarity: float = 0.55,
     ) -> List[QueryResult]:
         """Query only - no storage."""
         if not query_text.strip():
@@ -173,21 +179,17 @@ class QueryProcessor:
             return matched_results
 
         except Exception as e:
-            logger.error(f"Error during query operation: {e}")
+            logger.error("Error during query operation: %s", e)
             return []
 
     async def parallel_query(
-        self, query_text: str, n_results: int = 4, min_similarity: float = 0.5
+        self,
+        query_text: str,
+        n_results: int = 1,
+        min_similarity: float = 0.55,
     ) -> List[QueryResult]:
-        """Execute queries across all available models in parallel and combine results.
-
-        Args:
-            query_text: The text to search for
-            n_results: Maximum number of results per model
-            min_similarity: Minimum similarity threshold for including results
-
-        Returns:
-            List of QueryResult objects sorted by similarity score, from highest to lowest.
+        """Execute queries across all
+        available models in parallel and combine results.
         """
         models = self.emb_models
         if not models:
@@ -209,15 +211,20 @@ class QueryProcessor:
         combined_results = []
         for model_results in results:
 
-            if isinstance(model_results, list):  # Check if results are as expected
+            if isinstance(
+                model_results, list
+            ):  # Check if results are as expected
                 combined_results.extend(model_results)
             else:
                 logger.error(
-                    f"Unexpected result type from model query: {type(model_results)}"
+                    "Unexpected result type from model query: %s",
+                    model_results,
                 )
 
         # Sort and return results based on similarity
-        return sorted(combined_results, key=lambda x: x.similarity, reverse=True)
+        return sorted(
+            combined_results, key=lambda x: x.similarity, reverse=True
+        )
 
     def get_available_models(self) -> List[str]:
         """Get list of available models with collection statistics.
@@ -226,36 +233,36 @@ class QueryProcessor:
             List of model names with available collections
         """
         try:
-            # In ChromaDB v0.6.0, list_collections returns collection names directly
+
             collection_names = self.client.list_collections()
 
             # Log detailed collection statistics
             for name in collection_names:
                 try:
                     collection = self.client.get_collection(name=name)
-                    count = collection.count()
+                    if not collection:
+                        logger.error("Error no collection found")
 
                 except Exception as e:
-                    logger.error(f"Error accessing collection '{name}': {e}")
+                    logger.error(
+                        "Error accessing collection %s -> %s", name, e
+                    )
 
             return collection_names
 
         except Exception as e:
-            logger.error(f"Error listing collections: {e}")
+            logger.error("Error listing collections: %s", e)
             return []
 
     async def cleanup(self):
         """Cleanup resources with enhanced error handling."""
         try:
-            # Clear embedding cache
-            self._embedding_cache.clear()
-            self.chroma_client.clear_system_cache()
 
             # Shutdown thread pool
             self.executor.shutdown(wait=True)
 
         except Exception as e:
-            logger.error(f"Error during cleanup: {e}")
+            logger.error("Error during cleanup: %s", e)
             raise
 
 
@@ -263,14 +270,10 @@ class QueryInterface:
     """Interface for interacting with the query processor."""
 
     def __init__(self, db_path: str, emb_models: list):
-        """Initialize the query interface.
-
-        Args:
-            db_path: Path to the ChromaDB database
-        """
-        self.processor = QueryProcessor(db_path)
-        self._shutdown_event = asyncio.Event()
+        """Initialize the query interface."""
         self.emb_models = emb_models
+        self.processor = QueryProcessor(db_path, emb_models=self.emb_models)
+        self._shutdown_event = asyncio.Event()
 
     async def setup(self):
         """Initialize the interface and set up signal handlers."""
@@ -278,7 +281,7 @@ class QueryInterface:
         for sig in (signal.SIGTERM, signal.SIGINT):
             signal.signal(sig, self._signal_handler)
 
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self):
         """Handle shutdown signals gracefully."""
         console.print("\n[yellow]Shutting down gracefully...[/yellow]")
         self._shutdown_event.set()
@@ -287,7 +290,9 @@ class QueryInterface:
         """Start an interactive query session."""
         await self.setup()
 
-        console.print("\n[cyan]Enter your queries (press Ctrl+C to exit):[/cyan]")
+        console.print(
+            "\n[cyan]Enter your queries (press Ctrl+C to exit):[/cyan]"
+        )
 
         while not self._shutdown_event.is_set():
             try:
@@ -306,29 +311,33 @@ class QueryInterface:
                     TaskProgressColumn(),
                     console=console,
                 ) as progress:
-                    task = progress.add_task("[cyan]Querying all models...", total=None)
+                    task = progress.add_task(
+                        "[cyan]Querying all models...", total=None
+                    )
 
                     results = await self.processor.parallel_query(query)
                     progress.update(task, advance=1)
 
                 # Display results
                 if not results:
-                    console.print("[yellow]No matching results found[/yellow]")
+                    console.print(
+                        "[yellow]No matching results found[/yellow]"
+                    )
                     continue
 
                 console.print("\n[green]Results:[/green]")
                 for i, result in enumerate(results[:10], 1):
                     console.print(
                         f"\n[cyan]{i}. Model: {result.model}[/cyan]"
-                        f"\nSimilarity: {result.similarity:.5%}"
+                        f"\nSimilarity: {result.similarity:.55%}"
                         f"\nDocument: {result.document_id}"
-                        f"\nContent: {result.content[:1000]}"
+                        f"\nContent: {result.content[:7000]}"
                     )
 
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error processing query: {e}")
+                logger.error("Error processing query: %s", e)
                 console.print(f"[red]Error: {str(e)}[/red]")
 
     async def cleanup(self):
@@ -336,7 +345,9 @@ class QueryInterface:
         await self.processor.cleanup()
 
 
-async def get_query_interface(db_path: str, emb_models: list) -> QueryInterface:
+async def get_query_interface(
+    db_path: str, emb_models: list
+) -> QueryInterface:
     """Factory function to create and initialize a QueryInterface instance.
 
     Args:
