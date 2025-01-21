@@ -8,6 +8,8 @@ import logging
 import multiprocessing
 
 import os
+import re
+import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -28,8 +30,11 @@ from src.services.query.query_processor import QueryProcessor
 logger = logging.getLogger(__name__)
 console = Console()
 
-chat_models = ["phi-15B-4-Q8", "nvidia_q8"]
+chat_models = [
+    "DeepSeekR1_Q8v2",
+]
 
+USER = "NIKO"
 
 max_workers = multiprocessing.cpu_count()
 
@@ -113,20 +118,6 @@ class ChatMemoryProcessor:
             )
             raise
 
-    def _sanitize_metadata(self, metadata: dict) -> dict:
-        """Sanitize metadata to ensure only valid types are used."""
-        sanitized = {}
-        for key, value in metadata.items():
-            if isinstance(value, (str, int, float, bool)):
-                sanitized[key] = value
-            elif isinstance(value, (list, dict)):
-                sanitized[key] = json.dumps(value)
-            elif value is None:
-                sanitized[key] = "none"
-            else:
-                sanitized[key] = str(value)
-        return sanitized
-
 
 class EnhancedChatProcessor:
     """Enhanced chat processor with memory and unified responses."""
@@ -146,22 +137,61 @@ class EnhancedChatProcessor:
         conversation_id = str(uuid.uuid4())
         chat_data = []
 
+        self.chat_path = Path("src/data/chats")
+
         try:
             while True:
                 user_input = self.ui.get_user_input()
                 if not user_input.strip():
                     continue
+                mytime = datetime.now()
 
-                if self.new_chat is True:
-                    context = ""
-                else:
-                    context = await self._get_context(user_input)
-                    if not context:
-                        context = ""
+                time_s = mytime.strftime("%H:%M:%S")
+                # Get today's date formatted as YYYY-MM-DD
+                _date = datetime.now()
+                today_date = _date.strftime("%Y-%m-%d")
 
+                # Construct the file path for the JSON file
+                json_file_path = os.path.join(
+                    self.chat_path, f"{today_date}.json"
+                )
+
+                context_from_file = ""
+                if not self.new_chat:
+                    # Read the JSON file for today's date
+                    if os.path.exists(json_file_path):
+                        with open(json_file_path, "r") as file:
+                            try:
+                                context_from_file = json.load(file)
+
+                            except json.JSONDecodeError:
+                                print(
+                                    f"Error decoding JSON from {json_file_path}"
+                                )
+                    else:
+                        print(f"File not found: {json_file_path}")
+
+                    # Get additional context, if any
+                    context_from_function = await self._get_context(
+                        user_input
+                    )
+                elif self.new_chat:
+
+                    context_from_file = f"New chat starting at {time_s}"
+                    context_from_function = (
+                        f"Pay attention to previous conversations as we go"
+                    )
+
+                # Concatenate both contexts
+
+                context = {
+                    "today_chat": context_from_file,
+                    "context_from_previous_chats": context_from_function,
+                }
                 prompt = await self._create_prompt(user_input, context)
 
                 responses = await self._get_model_responses(prompt)
+
                 message_id = str(uuid.uuid4())
                 timestamp = str(datetime.now().isoformat())
 
@@ -169,6 +199,7 @@ class EnhancedChatProcessor:
                     "type": "question",
                     "timestamp": timestamp,
                     "message_id": message_id,
+                    "user": USER,
                     "response_metadata": json.dumps(
                         {  # Convert to JSON string
                             "type": "model_responses",
@@ -179,14 +210,21 @@ class EnhancedChatProcessor:
 
                 await self.ui.display_responses(responses)
                 data = {
-                    "question": user_input,
-                    "prompt": prompt,
+                    "question": {"user": USER, "user_input": user_input},
                     "responses": responses,
+                    "time": time_s,
                 }
 
-                chat_data.append({"data": data, "metadata": metadata})
+                filtered_data = json.loads(
+                    await self.filter_special_chars(json.dumps(data))
+                )
+                await self.memory.store_message(
+                    str(filtered_data), metadata
+                )
 
-                await self.memory.store_message(json.dumps(data), metadata)
+                chat_data = {"data": filtered_data, "metadata": metadata}
+
+                await self._update_json_file(chat_data)
 
                 if self.new_chat is True:
                     self.new_chat = False
@@ -196,25 +234,55 @@ class EnhancedChatProcessor:
 
         except KeyboardInterrupt:
             print("\nChat interrupted by user. Saving chat data...")
+            await self._update_json_file(chat_data)
+            sys.exit(1)
         except Exception as e:
             print(
                 f"\nAn error occurred: {str(e)}. Saving chat data to prevent loss..."
             )
-        finally:
-            # Save the chat data regardless of how the loop ended
-            today_date = datetime.now().strftime("%Y-%m-%d")
-            folder_path = os.path.join("src", "data", "chats")
-            file_path = os.path.join(folder_path, f"{today_date}.json")
-
-            # Ensure the directory exists
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
-
-            # Write the conversation to JSON file
-            with open(file_path, "w") as json_file:
-                json.dump(chat_data, json_file, indent=4)
+            await self._update_json_file(chat_data)
+            sys.exit(1)
 
         return conversation_id
+
+    async def _update_json_file(self, chat_data):
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        folder_path = os.path.join("src", "data", "chats")
+        file_path = os.path.join(folder_path, f"{today_date}.json")
+
+        # Ensure the directory exists
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        # Load existing data or initialize an empty list
+        existing_data = []
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as json_file:
+                try:
+                    # Load the file content, which should be a list
+                    existing_data = json.load(json_file)
+                    # Ensure it's a list
+                    if not isinstance(existing_data, list):
+                        existing_data = [existing_data]
+                except json.JSONDecodeError:
+                    # If the file is empty or corrupted, start with an empty list
+                    existing_data = []
+
+        # Append new data
+        existing_data.append(chat_data)
+
+        # Write the updated data back to the file
+        with open(file_path, "w", encoding="utf-8") as json_file:
+            json.dump(existing_data, json_file, indent=4)
+
+    async def filter_special_chars(self, text):
+        """Clean up the gather text from too many spaces
+        and useless special chars"""
+        cleaned_text = re.sub(r"[\t\n\r]", " ", text)
+
+        # Step 2: Replace multiple spaces with a single space
+        cleaned_text = re.sub(r"\s+", " ", cleaned_text)
+        return cleaned_text
 
     async def _get_model_responses(self, prompt: str) -> Dict[str, str]:
         """Fetch responses from different models."""
@@ -238,7 +306,7 @@ class EnhancedChatProcessor:
         query_processor = QueryProcessor(self.db_path, self.emb_models)
         try:
             results = await query_processor.parallel_query(
-                query_text=question, n_results=1, min_similarity=0.55
+                query_text=question, n_results=2, min_similarity=0.6
             )
             if not results:
                 return None
@@ -252,8 +320,8 @@ class EnhancedChatProcessor:
 
     async def _create_prompt(self, question: str, context: str) -> str:
         """Create a prompt with context for model querying."""
-        requirements = """Be detailed and thorough,use analogies,give practical examples,structure for understanding, ensure correctness and accuracy"""
-        return f""" Question: {question}, Requirements: {requirements}, Context: {context}
+        requirements = """You are my expert; Be detailed,thorough,correct, accurate. Make use of all available information """
+        return f""" 'User': {USER} 'Context': {context},'Requirements': {requirements}, 'Question': {question}
         """
 
 
@@ -302,5 +370,11 @@ class ResponseFormatter:
 
         for model, response in responses.items():
             table.add_row(model, Markdown(self.format_text(response)))
+            table.add_row(
+                "",
+                Markdown(
+                    "=========================================================="
+                ),
+            )
 
         return table

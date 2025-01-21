@@ -134,8 +134,8 @@ class QueryProcessor:
         self,
         query_text: str,
         model: str,
-        n_results: int = 1,
-        min_similarity: float = 0.55,
+        n_results: int = 2,
+        min_similarity: float = 0.60,
     ) -> List[QueryResult]:
         """Query only - no storage."""
         if not query_text.strip():
@@ -185,8 +185,8 @@ class QueryProcessor:
     async def parallel_query(
         self,
         query_text: str,
-        n_results: int = 1,
-        min_similarity: float = 0.55,
+        n_results: int = 2,
+        min_similarity: float = 0.60,
     ) -> List[QueryResult]:
         """Execute queries across all
         available models in parallel and combine results.
@@ -329,9 +329,9 @@ class QueryInterface:
                 for i, result in enumerate(results[:10], 1):
                     console.print(
                         f"\n[cyan]{i}. Model: {result.model}[/cyan]"
-                        f"\nSimilarity: {result.similarity:.55%}"
+                        f"\nSimilarity: {result.similarity:.6%}"
                         f"\nDocument: {result.document_id}"
-                        f"\nContent: {result.content[:7000]}"
+                        f"\nContent: {result.content[:11000]}"
                     )
 
             except asyncio.CancelledError:

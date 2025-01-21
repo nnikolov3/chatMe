@@ -138,7 +138,7 @@ class VectorProcessor:
             # Check if similar content already exists
             existing = collection.query(
                 query_embeddings=embedding,
-                n_results=1,
+                n_results=2,
                 include=["metadatas"],
             )
 

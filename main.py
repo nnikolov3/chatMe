@@ -35,6 +35,7 @@ emb_models = [
     "mxbai-embed-large",
     "nomic-embed-text",
     "all-minilm",
+    "snowflake-arctic-embed2",
 ]
 
 

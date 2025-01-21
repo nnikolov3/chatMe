@@ -60,8 +60,8 @@ class QueryProcessor:
     async def query(
         self,
         query_text: str,
-        n_results: int = 5,
-        min_similarity: float = 0.7,
+        n_results: int = 2,
+        min_similarity: float = 0.57,
         specific_model: Optional[str] = None,
     ) -> List[QueryResult]:
         """Query the vector database across all models or a specific model.
@@ -197,15 +197,15 @@ class QueryInterface:
                 try:
                     n_results = int(input().strip() or "5")
                 except ValueError:
-                    n_results = 5
+                    n_results = 2
 
                 self.console.print(
                     "[cyan]Minimum similarity threshold (0-1, default: 0.7):[/cyan]"
                 )
                 try:
-                    min_similarity = float(input().strip() or "0.7")
+                    min_similarity = float(input().strip() or "0.6")
                 except ValueError:
-                    min_similarity = 0.7
+                    min_similarity = 0.6
 
                 # Get available models
                 available_models = self.processor.get_available_models()
